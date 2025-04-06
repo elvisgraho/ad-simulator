@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AD Network Simulation - Red Team Training</title>
+
+    <link rel="stylesheet" href="lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="lib/font-awesome.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <script src="lib/cytoscape.min.js"></script>
+    <script src="lib/bootstrap.bundle.min.js"></script>
+  </head>
+  <body>
+    <div id="header">
+      <h4>
+        <i class="fas fa-skull-crossbones"></i> AD Network Simulation - Red Team
+        Training
+      </h4>
+    </div>
+
+    <div id="main-content">
+      <div id="controls">
+        <!-- Simulation Controls -->
+        <div>
+          <h6><i class="fas fa-cogs"></i> Simulation Control</h6>
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              value=""
+              id="chk-manual-mode"
+            />
+            <label class="form-check-label small" for="chk-manual-mode"
+              >Manual Step Mode</label
+            >
+          </div>
+          <div
+            id="manual-step-controls"
+            class="justify-content-between mb-2 manual-step-controls"
+          >
+            <button id="btn-next-step" class="btn btn-primary btn-sm" disabled>
+              <i class="fas fa-forward-step"></i> Next
+            </button>
+          </div>
+          <button id="btn-reset" class="btn btn-warning btn-sm w-100">
+            <i class="fas fa-redo"></i> Reset Simulation
+          </button>
+        </div>
+        <hr />
+        <!-- Scenario Buttons -->
+        <div class="scenario-buttons">
+          <h5><i class="fas fa-tasks"></i> Scenarios</h5>
+          <h6>
+            <i class="fas fa-check-circle text-success"></i> Legitimate Actions
+          </h6>
+          <div class="d-grid gap-2">
+            <button id="btn-legit-logon" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-play"></i> Standard User Logon
+            </button>
+            <button
+              id="btn-legit-admin-group"
+              class="btn btn-outline-success btn-sm"
+            >
+              <i class="fas fa-play"></i> Admin: Add User to Group
+            </button>
+            <button id="btn-legit-gpo" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-play"></i> Host: GPO Update Check
+            </button>
+            <button id="btn-legit-cert" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-play"></i> User: Request Certificate
+            </button>
+            <button
+              id="btn-legit-fileshare"
+              class="btn btn-outline-success btn-sm"
+            >
+              <i class="fas fa-play"></i> User: Access File Share
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Initial Access &
+            Credential Attacks
+          </h6>
+          <div class="d-grid gap-2">
+            <button id="btn-attack-spray" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> Password Spray
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button
+              id="btn-attack-kerberoast"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> Kerberoasting
+              <small class="d-block text-muted"
+                >Requires domain user account</small
+              >
+            </button>
+            <button id="btn-attack-asrep" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> AS-REP Roasting
+              <small class="d-block text-muted"
+                >Requires user with preauth disabled</small
+              >
+            </button>
+            <button id="btn-attack-ntlm" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> NTLM Relay
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button id="btn-attack-llmnr" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> LLMNR/NBT-NS Poisoning
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Enumeration & Discovery
+          </h6>
+          <div class="d-grid gap-2">
+            <button
+              id="btn-attack-sharphound"
+              class="btn btn-outline-warning btn-sm"
+            >
+              <i class="fas fa-play"></i> SharpHound/Enum
+              <small class="d-block text-muted"
+                >Requires domain user account</small
+              >
+            </button>
+            <button id="btn-attack-ldap" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> LDAP Recon
+              <small class="d-block text-muted"
+                >Requires domain user account</small
+              >
+            </button>
+            <button id="btn-attack-dns" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> DNS Recon
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button id="btn-attack-smb" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> SMB Share Enum
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Lateral Movement &
+            Privilege Escalation
+          </h6>
+          <div class="d-grid gap-2">
+            <button id="btn-attack-ptt" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> Pass-the-Ticket
+              <small class="d-block text-muted"
+                >Requires user's Kerberos tickets</small
+              >
+            </button>
+            <button id="btn-attack-pth" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> Pass-the-Hash
+              <small class="d-block text-muted"
+                >Requires user's NTLM hash</small
+              >
+            </button>
+            <button id="btn-attack-uncon" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> Unconstrained Delegation
+              <small class="d-block text-muted"
+                >Requires service account access</small
+              >
+            </button>
+            <button id="btn-attack-rbcd" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> RBCD Abuse
+              <small class="d-block text-muted"
+                >Requires machine account control</small
+              >
+            </button>
+            <button
+              id="btn-attack-remote-exec"
+              class="btn btn-outline-warning btn-sm"
+            >
+              <i class="fas fa-play"></i> Remote Service Exec
+              <small class="d-block text-muted"
+                >Requires admin credentials</small
+              >
+            </button>
+            <button
+              id="btn-attack-scheduled"
+              class="btn btn-outline-warning btn-sm"
+            >
+              <i class="fas fa-play"></i> Scheduled Task Abuse
+              <small class="d-block text-muted"
+                >Requires user with task creation rights</small
+              >
+            </button>
+            <button id="btn-attack-wmi" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> WMI Abuse
+              <small class="d-block text-muted"
+                >Requires user with WMI access</small
+              >
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Certificate & PKI
+            Attacks
+          </h6>
+          <div class="d-grid gap-2">
+            <button id="btn-attack-esc1" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC1 (Template Abuse)
+              <small class="d-block text-muted"
+                >Requires user with template enrollment rights</small
+              >
+            </button>
+            <button id="btn-attack-esc2" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC2 (Any Purpose)
+              <small class="d-block text-muted"
+                >Requires user with template enrollment rights</small
+              >
+            </button>
+            <button id="btn-attack-esc3" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC3 (Enrollment Agent)
+              <small class="d-block text-muted"
+                >Requires enrollment agent certificate</small
+              >
+            </button>
+            <button id="btn-attack-esc4" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC4 (Template ACL)
+              <small class="d-block text-muted"
+                >Requires template modification rights</small
+              >
+            </button>
+            <button id="btn-attack-esc6" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC6 (NTLM Auth)
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button id="btn-attack-esc8" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> ESC8 (Web Enrollment)
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Domain Compromise &
+            Persistence
+          </h6>
+          <div class="d-grid gap-2">
+            <button
+              id="btn-attack-dcsync"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> DCSync
+              <small class="d-block text-muted"
+                >Requires domain admin privileges</small
+              >
+            </button>
+            <button
+              id="btn-attack-golden"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> Golden Ticket
+              <small class="d-block text-muted">Requires krbtgt hash</small>
+            </button>
+            <button
+              id="btn-attack-silver"
+              class="btn btn-outline-warning btn-sm"
+            >
+              <i class="fas fa-play"></i> Silver Ticket
+              <small class="d-block text-muted"
+                >Requires service account hash</small
+              >
+            </button>
+            <button
+              id="btn-attack-shadow"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> Shadow Credentials
+              <small class="d-block text-muted"
+                >Requires write access to target</small
+              >
+            </button>
+            <button
+              id="btn-attack-skeleton"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> Skeleton Key
+              <small class="d-block text-muted"
+                >Requires domain admin privileges</small
+              >
+            </button>
+            <button id="btn-attack-dsr" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> DSRM Abuse
+              <small class="d-block text-muted">Requires DSRM password</small>
+            </button>
+          </div>
+
+          <hr class="my-2" />
+          <h6>
+            <i class="fas fa-biohazard text-danger"></i> Service & Protocol
+            Abuse
+          </h6>
+          <div class="d-grid gap-2">
+            <button
+              id="btn-attack-printnightmare"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> PrintNightmare
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button
+              id="btn-attack-petitpotam"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> PetitPotam
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button
+              id="btn-attack-zerologon"
+              class="btn btn-outline-danger btn-sm"
+            >
+              <i class="fas fa-play"></i> ZeroLogon
+              <small class="d-block text-muted"
+                >Direct attack - No user required</small
+              >
+            </button>
+            <button id="btn-attack-ms14" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> MS14-068
+              <small class="d-block text-muted"
+                >Requires domain user account</small
+              >
+            </button>
+            <button id="btn-attack-samr" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-play"></i> SAMR Abuse
+              <small class="d-block text-muted"
+                >Requires local admin access</small
+              >
+            </button>
+            <button id="btn-attack-ntds" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-play"></i> NTDS.dit Extraction
+              <small class="d-block text-muted"
+                >Requires domain admin privileges</small
+              >
+            </button>
+          </div>
+        </div>
+        <hr />
+        <!-- Legend -->
+        <div class="legend mt-auto">
+          <h6><i class="fas fa-info-circle"></i> Legend</h6>
+          <ul class="list-unstyled small">
+            <!-- Node Types -->
+            <li class="legend-item">
+              <span style="color: #0d6efd">💾</span> DC
+            </li>
+            <li class="legend-item">
+              <span style="color: #ffc107">📜</span> CA
+            </li>
+            <li class="legend-item">
+              <span style="color: #198754">👤</span> User
+            </li>
+            <li class="legend-item">
+              <span style="color: #b81f1f">👑</span> Admin
+            </li>
+            <li class="legend-item">
+              <span style="color: #6c757d">⚙️</span> Service Acct
+            </li>
+            <li class="legend-item">
+              <span style="color: #0dcaf0">💻</span> Workstation
+            </li>
+            <li class="legend-item">
+              <span style="color: #6f42c1">🏢</span> Server
+            </li>
+            <li class="legend-item">
+              <span style="color: #dc3545">💀</span> Attacker
+            </li>
+            <hr style="margin: 5px 0" />
+            <!-- Edge Types -->
+            <li class="legend-item">
+              <span style="color: #4dabf7; font-weight: bold">—→</span> Kerberos
+            </li>
+            <li class="legend-item">
+              <span style="color: #ffec99; font-weight: bold">––→</span> LDAP
+            </li>
+            <li class="legend-item">
+              <span style="color: #ff8787; font-weight: bold">···→</span>
+              DRSUAPI
+            </li>
+            <li class="legend-item">
+              <span style="color: #fcc2d7; font-weight: bold">···→</span> RPC
+            </li>
+            <li class="legend-item">
+              <span style="color: #ffa94d; font-weight: bold">––→</span> SMB
+            </li>
+            <li class="legend-item">
+              <span style="color: #f783ac; font-weight: bold">––→</span> NTLM
+            </li>
+            <li class="legend-item">
+              <span style="color: #b197fc; font-weight: bold">···→</span> DNS
+            </li>
+            <li class="legend-item">
+              <span style="color: #63e6be; font-weight: bold">—→</span> HTTP(S)
+            </li>
+            <li class="legend-item">
+              <span style="color: #e03131; font-weight: bold">—→</span> Attack
+              Flow
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div id="visualization-area">
+        <div id="cy"></div>
+        <div id="log-area">
+          <h6><i class="fas fa-clipboard-list"></i> Simulation Log</h6>
+          <pre id="log-content"></pre>
+        </div>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
