@@ -1,0 +1,129 @@
+/* --- Base Styles --- */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+}
+#header {
+  background-color: #212529;
+  color: white;
+  padding: 10px 20px;
+  flex-shrink: 0;
+}
+#main-content {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+}
+#controls {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  min-width: 340px;
+  max-width: 450px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#controls .scenario-buttons .btn {
+  margin-bottom: 5px;
+  text-align: left;
+  font-size: 0.9em;
+}
+#controls h5,
+#controls h6 {
+  margin-top: 15px;
+  margin-bottom: 8px;
+}
+#visualization-area {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #f0f0f0;
+}
+#cy {
+  width: 100%;
+  flex-grow: 1;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #ffffff;
+}
+#log-area {
+  height: 30%;
+  min-height: 150px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 10px;
+  font-family: "Consolas", "Menlo", "Courier New", monospace;
+  font-size: 0.9em;
+  border-top: 2px solid #444;
+}
+#log-area pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+/* Log colors */
+#log-area .log-kerberos {
+  color: #4dabf7;
+}
+#log-area .log-ldap {
+  color: #ffec99;
+}
+#log-area .log-attack {
+  color: #ff8787;
+  font-weight: bold;
+}
+#log-area .log-success {
+  color: #94d82d;
+  font-weight: bold;
+}
+#log-area .log-fail {
+  color: #ff8787;
+}
+#log-area .log-info {
+  color: #74c0fc;
+}
+#log-area .log-rpc {
+  color: #fcc2d7;
+}
+#log-area .log-smb {
+  color: #ffa94d;
+}
+#log-area .log-dns {
+  color: #b197fc;
+}
+#log-area .log-http {
+  color: #63e6be;
+}
+#log-area .log-drsuapi {
+  color: #ff8787;
+  font-weight: bold;
+}
+#log-area .log-ntlm {
+  color: #f783ac;
+}
+
+/* Legend styling */
+#controls .legend-item span:first-child {
+  display: inline-block;
+  width: 1.2em;
+  height: 1em;
+  line-height: 1em;
+  vertical-align: middle;
+  margin-right: 5px;
+  text-align: center;
+  font-size: 1.2em;
+}
+.manual-step-controls {
+  display: none;
+}
+.manual-step-controls.active {
+  display: flex;
+}
