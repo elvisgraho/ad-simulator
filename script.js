@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let simulationTimeout = null;
   let isManualMode = false;
   let isRunning = false;
-  const stepDelay = 3000;
+  const stepDelay = 2200;
   let currentScenario = [];
   let currentStep = -1;
   let manualStepEdges = [];
@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ntlm_hash: "SqlSvcHash1",
       },
       classes: "cy-node cy-node-svc",
-      position: { x: 550, y: 500 },
+      position: { x: 550, y: 400 },
     },
     {
       data: {
@@ -236,7 +236,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ip: "192.168.1.100",
       },
       classes: "cy-node cy-node-attacker",
-      position: { x: 150, y: 250 },
+      position: { x: 200, y: 300 },
     },
     // Hidden KRBTGT
     {
@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "text-wrap": "wrap",
             "text-max-width": "80px",
             "text-margin-y": 20,
-            "font-size": "24px",
+            "font-size": "18px",
             color: "#333",
             "text-outline-color": "#ffffff",
             "text-outline-width": 2,
@@ -1190,61 +1190,68 @@ document.addEventListener("DOMContentLoaded", function () {
     {
       scenarioName: "Attack: Password Spray (Kerberos Pre-Auth)",
       logMessage:
-        "Attacker Goal: Find valid credentials by trying one password against many accounts.",
+        "Attacker Goal: Find valid credentials by trying one common password (e.g., 'admin12345') against many different accounts, avoiding lockouts.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "[Optional Recon] Attacker -> DC01: LDAP Search (e.g., '(objectClass=user)') to get list of usernames.",
+        "[Optional Recon] Attacker -> DC01: LDAP Search (e.g., '(objectClass=user)') to obtain a list of valid usernames.",
       logType: "ldap",
       action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Enum Users"),
     },
     {
       logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ for User1 with Password 'Winter2024'. (No valid TGT expected initially).",
+        "Attacker -> DC01: Kerberos AS-REQ for User1 with guessed password 'admin12345'. (No valid TGT expected initially).",
       logType: "attack",
       action: () =>
         addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U1)"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password).",
-      logType: "kerberos",
-      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error"),
+        "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for User1).",
+      logType: "kerberos", // Indicates username is valid, password is not
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error (Bad Pwd)"),
     },
     {
       logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ for User2 with Password 'Winter2024'.",
+        "Attacker -> DC01: Kerberos AS-REQ for User2 with guessed password 'Company123'.",
       logType: "attack",
       action: () =>
         addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U2)"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED).",
+        "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for User2).",
       logType: "kerberos",
-      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error"),
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error (Bad Pwd)"),
     },
     {
+      // ... Attacker continues spraying the same password against other users ...
       logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ for User3 (Alice - user1) with Password 'Winter2024'.",
+        "Attacker -> DC01: Kerberos AS-REQ for User3 (user1) with guessed password 'Winter2024'.",
       logType: "attack",
       action: () =>
         addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U3)"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos AS-REP (Success! Password 'Winter2024' is valid for Alice). TGT Issued.",
+        "DC01: Validates pre-authentication using user1's hash and the provided password ('Winter2024'). It matches!",
+      logType: "kerberos",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage:
+        "DC01 -> Attacker: Kerberos AS-REP (Success! Password 'Winter2024' is valid for user1). TGT for user1 is issued.",
       logType: "success",
       action: () => {
-        highlightElement("user1", stepDelay, "compromised"); // Mark user as potentially compromised
+        highlightElement("user1", stepDelay, "compromised"); // Mark user as compromised
         addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (Success!)");
       },
     },
     {
       logMessage:
-        "IMPACT: Attacker identified valid credentials (user1:Winter2024). Can now authenticate as Alice, access resources she has access to, and perform further recon/attacks.",
+        "IMPACT: Attacker identified valid credentials (user1:Winter2024) without triggering immediate lockouts. Can now authenticate as user1, access resources they have permissions for, and potentially perform further attacks (like Kerberoasting).",
       logType: "success",
     },
   ];
@@ -1253,46 +1260,47 @@ document.addEventListener("DOMContentLoaded", function () {
     {
       scenarioName: "Attack: Kerberoasting",
       logMessage:
-        "Attacker Goal: Obtain crackable hash for a service account password.",
+        "Attacker Goal: Obtain the NTLM hash of a service account password by requesting a Service Ticket (ST) for it and cracking the ticket offline.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite: Attacker needs *any* valid domain user credentials (low privilege is sufficient).",
+        "Prerequisite: Attacker has compromised *any* valid domain user account credentials (low privilege is sufficient). Let's assume attacker controls 'userX'.",
       logType: "info",
+      action: () => highlightElement("userX", stepDelay, "compromised"), // Represents any low-priv user
     },
     {
       logMessage:
-        "Attacker (as UserX) -> DC01: LDAP Search (Filter: '(servicePrincipalName=*)', requesting SPN attribute). Find accounts with SPNs (potential service accounts).",
+        "Attacker (authenticated as userX) -> DC01: LDAP Search (Querying for accounts with Service Principal Names (SPNs) set, e.g., '(servicePrincipalName=*)', requesting the 'servicePrincipalName' attribute).",
       logType: "ldap",
       action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Find SPNs"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: LDAP Result (List of accounts and their SPNs, e.g., 'svc_sql01' has SPN 'MSSQLSvc/sql01.corp.local:1433').",
+        "DC01 -> Attacker: LDAP Search Result (Returns list of accounts and their associated SPNs. Example: 'svc_sql01' account has SPN 'MSSQLSvc/sql01.corp.local:1433').",
       logType: "ldap",
       action: () => addTemporaryEdge("dc01", "attacker", "LDAP", "SPN List"),
     },
     {
       logMessage:
-        "Attacker (as UserX) -> DC01: Kerberos TGS-REQ (Requesting ST for a found SPN, e.g., 'MSSQLSvc/sql01...'). Uses UserX's TGT.",
-      logType: "kerberos",
+        "Attacker (using userX's TGT) -> DC01: Kerberos TGS-REQ (Requesting a Service Ticket (ST/TGS) for a discovered SPN, e.g., 'MSSQLSvc/sql01...'). Any authenticated user can request STs for most services.",
+      logType: "kerberos", // This is a legitimate Kerberos request from userX
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (Roast)"),
+        addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (Roast SPN)"),
     },
     {
       logMessage:
-        "DC01: Validates UserX's TGT. Finds the service account ('svc_sql01') linked to the SPN.",
+        "DC01: Validates userX's TGT. Finds the service account ('svc_sql01') associated with the requested SPN.",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker (as UserX): Kerberos TGS-REP (Service Ticket ST). Crucially, the ticket is encrypted using the *service account's (svc_sql01)* NTLM hash.",
+        "DC01 -> Attacker (as userX): Kerberos TGS-REP (Containing the Service Ticket). The crucial part is that the ticket itself is encrypted using the NTLM hash of the *service account* ('svc_sql01').",
       logType: "kerberos",
       action: () => {
-        highlightElement("svc_sql01"); // Target service account
+        highlightElement("svc_sql01"); // Target service account whose hash is in the ticket
         addTemporaryEdge(
           "dc01",
           "attacker",
@@ -1303,25 +1311,25 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "Attacker: Extracts the encrypted portion of the TGS-REP (the Service Ticket). No communication needed.",
+        "Attacker: Receives the TGS-REP and extracts the encrypted Service Ticket portion. No further interaction with the network is needed for cracking.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker: Performs OFFLINE cracking (e.g., using Hashcat, John the Ripper) against the extracted ST blob using a wordlist.",
-      logType: "attack",
+        "Attacker: Performs OFFLINE password cracking (e.g., using Hashcat mode 13100 or John the Ripper) against the extracted encrypted ST blob, using password lists/rules.",
+      logType: "attack", // Offline computation
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker: Successfully cracks the hash, revealing svc_sql01's password.",
+        "Attacker: Successfully cracks the hash, revealing the plaintext password for the 'svc_sql01' service account.",
       logType: "success",
       action: () => highlightElement("svc_sql01", stepDelay, "compromised"),
     },
     {
       logMessage:
-        "IMPACT: Attacker knows the service account password. Can authenticate *as* svc_sql01, potentially access sensitive systems (like SQL server), run commands as the service, or use its privileges for lateral movement.",
+        "IMPACT: Attacker obtained the password for a potentially privileged service account ('svc_sql01'). This allows authentication *as* the service account, potentially granting access to sensitive systems (like the SQL server), execution of commands under the service's context, and lateral movement opportunities.",
       logType: "success",
     },
   ];
@@ -1330,203 +1338,213 @@ document.addEventListener("DOMContentLoaded", function () {
     {
       scenarioName: "Attack: AS-REP Roasting",
       logMessage:
-        "Attacker Goal: Obtain crackable hash for users with Kerberos pre-authentication disabled.",
+        "Attacker Goal: Obtain the NTLM hash of a user account that has Kerberos Pre-Authentication disabled, by requesting an AS-REP and cracking it offline.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite: Attacker needs network visibility to a KDC (DC) but NO domain credentials required.",
+        "Prerequisite: Attacker needs network visibility to a Domain Controller (KDC). NO initial domain credentials are required.",
       logType: "info",
+      action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker -> DC01: LDAP Search (Optional, if creds available: Filter: '(userAccountControl:1.2.840.113556.1.4.803:=4194304)' - DONT_REQ_PREAUTH flag). Finds users without pre-auth required.",
-      logType: "ldap", // Or attacker may guess usernames
+        "Attacker -> DC01: LDAP Search (Optional, if creds available or anonymous bind allowed: Filter: '(userAccountControl:1.2.840.113556.1.4.803:=4194304)' to find users with 'DONT_REQ_PREAUTH' flag set). Attacker might also use pre-compiled lists or guess common usernames.",
+      logType: "ldap",
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Find NoPreauth"),
+        addTemporaryEdge("attacker", "dc01", "LDAP", "Find NoPreauth Users"),
     },
     {
       logMessage:
-        "Attacker: Identifies/Guesses target username (e.g., 'svc_backup') known or suspected to have pre-auth disabled.",
+        "Attacker: Identifies or guesses a target username (e.g., 'svc_backup') known or suspected to have pre-authentication disabled.",
       logType: "info",
       action: () => highlightElement("svc_backup"), // Example target user
     },
     {
       logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ for 'svc_backup'. Critically, the request does NOT include a pre-authentication timestamp.",
+        "Attacker -> DC01: Kerberos AS-REQ for the target user ('svc_backup'). Critically, the request does NOT include any pre-authentication data (encrypted timestamp).",
       logType: "attack",
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (NoPreAuth)"),
+        addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (NoPreAuth Data)"),
     },
     {
       logMessage:
-        "DC01: Finds user 'svc_backup'. Checks userAccountControl flag. Sees DONT_REQ_PREAUTH is TRUE. Skips pre-auth validation.",
+        "DC01: Finds the user account 'svc_backup'. Checks its 'userAccountControl' attribute. Sees the DONT_REQ_PREAUTH flag is TRUE. Therefore, it skips the pre-authentication validation step.",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos AS-REP (Sending TGT). Crucially, the AS-REP message contains a portion encrypted with the *user's (svc_backup)* NTLM hash.",
-      logType: "kerberos",
+        "DC01 -> Attacker: Kerberos AS-REP (Sending the TGT response). Because pre-auth was skipped, this AS-REP contains a portion encrypted with the *target user's ('svc_backup')* NTLM hash.",
+      logType: "kerberos", // DC sends encrypted ticket as user doesn't require pre-auth
       action: () =>
-        addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (Encrypted)"),
+        addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (Encrypted TGT Part)"),
     },
     {
       logMessage:
-        "Attacker: Extracts the encrypted portion of the AS-REP. No further communication needed.",
+        "Attacker: Receives the AS-REP message and extracts the encrypted portion. No further communication needed for cracking.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker: Performs OFFLINE cracking (e.g., Hashcat mode 18200) against the extracted blob using a wordlist.",
-      logType: "attack",
+        "Attacker: Performs OFFLINE password cracking (e.g., Hashcat mode 18200) against the extracted encrypted blob using password lists/rules.",
+      logType: "attack", // Offline computation
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker: Successfully cracks the hash, revealing svc_backup's password.",
+        "Attacker: Successfully cracks the hash, revealing the plaintext password for the 'svc_backup' user account.",
       logType: "success",
       action: () => highlightElement("svc_backup", stepDelay, "compromised"),
     },
     {
       logMessage:
-        "IMPACT: Attacker knows the user's password without initially having any credentials. Can authenticate as that user, access resources, and perform further actions.",
+        "IMPACT: Attacker obtained the password for a user ('svc_backup') without needing any prior credentials, solely by exploiting disabled pre-authentication. Allows authentication as this user, access to their resources, and potential further actions.",
       logType: "success",
     },
   ];
+
   const attackGoldenTicketScenario = [
     {
       scenarioName: "Attack: Golden Ticket Forgery & Use",
       logMessage:
-        "Attacker Goal: Forge a Kerberos TGT to impersonate any user (e.g., Domain Admin) without needing their password.",
+        "Attacker Goal: Forge a Kerberos Ticket Granting Ticket (TGT) that impersonates any user (typically Domain Admin) and is accepted by any KDC in the domain.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite: Attacker has obtained the KRBTGT account's NTLM hash or AES key (e.g., via DCSync). Also needs Domain SID.",
+        "Prerequisite 1: Attacker has obtained the NTLM hash or AES key(s) of the domain's KRBTGT account (e.g., via DCSync attack).",
       logType: "attack",
       action: () => {
+        highlightElement("attacker");
         highlightElement("krbtgt", stepDelay, "compromised"); // Essential prerequisite
       },
     },
     {
-      // Attacker may need Domain SID, easily obtainable via LDAP anonymously or with any user creds
       logMessage:
-        "[Optional Recon] Attacker -> DC01: LDAP Search (Get Domain SID from RootDSE or Domain object).",
-      logType: "ldap",
+        "Prerequisite 2: Attacker knows the Domain SID.",
+      logType: "info",
+      // Attacker may need Domain SID, easily obtainable via LDAP anonymously or with any user creds
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Get Domain SID"),
+        addTemporaryEdge("attacker", "dc01", "LDAP", "[Opt] Get Domain SID"),
     },
     {
       logMessage:
-        "Attacker: Uses tool (Mimikatz, Rubeus) OFFLINE to craft a fake TGT. Specifies target username (e.g., 'Administrator'), UserID (e.g., 500), desired group SIDs (e.g., Domain Admins - 512), Domain SID, and encrypts/signs it using the stolen KRBTGT hash/key.",
+        "Attacker: Uses a tool (e.g., Mimikatz, Rubeus) OFFLINE on their machine to craft a fraudulent TGT. The attacker specifies: Target Username (e.g., 'Administrator'), UserID (e.g., 500), Group SIDs (e.g., Domain Admins - RID 512, Enterprise Admins - RID 519, etc.), the Domain SID, ticket lifetime, and crucially signs/encrypts the ticket using the stolen KRBTGT hash/key.",
       logType: "attack", // Offline action
       action: () => {
         highlightElement("attacker");
-        highlightElement("admin1"); // Represents the impersonated DA
+        highlightElement("admin1"); // Represents the impersonated DA specified in the ticket
       },
     },
     {
       logMessage:
-        "Attacker: Injects the forged Golden Ticket into their current logon session's memory.",
-      logType: "attack", // Local action on attacker machine
+        "Attacker: Injects the forged Golden Ticket into their current logon session's memory (e.g., using Mimikatz 'kerberos::ptt' or Rubeus 'ptt').",
+      logType: "attack", // Local action on attacker machine to load the ticket
       action: () => highlightElement("attacker"),
     },
     {
-      // Now, use the forged TGT to access resources as the impersonated Admin
+      // Now, the attacker uses the forged TGT as if it were legitimate
       logMessage:
-        "Attacker (using forged DA TGT) -> DC01: Kerberos TGS-REQ (Requesting ST for LDAP/dc01... service).",
-      logType: "attack", // Appears as DA to the DC
+        "Attacker (session now contains forged DA TGT): -> DC01: Kerberos TGS-REQ (Requesting a Service Ticket for a target service, e.g., 'cifs/dc01.corp.local' or 'LDAP/dc01...'). The request uses the injected Golden Ticket.",
+      logType: "attack", // Appears as the forged user (DA) to the DC
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (Golden)"),
+        addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (w/ Golden TGT)"),
     },
     {
       logMessage:
-        "DC01: Validates TGT (signed correctly with KRBTGT key - accepts it!). Issues ST for LDAP service as requested by 'Administrator'.",
-      logType: "kerberos",
+        "DC01: Receives TGS-REQ. Validates the accompanying TGT. Since the TGT is correctly encrypted/signed with the *real* KRBTGT key (which the attacker stole), the DC accepts the TGT as valid! It doesn't need to check the user/groups inside against AD at this stage.",
+      logType: "kerberos", // DC trusts the TGT because the KRBTGT key matches
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos TGS-REP (Sending ST for LDAP/dc01).",
+        "DC01 -> Attacker: Kerberos TGS-REP (Issues the requested Service Ticket, e.g., for LDAP/dc01, granting access *as the user specified in the Golden Ticket* - e.g., 'Administrator').",
       logType: "kerberos",
       action: () =>
-        addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (ST)"),
+        addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (ST as DA)"),
     },
     {
       logMessage:
-        "Attacker (using ST) -> DC01: LDAP Operations (e.g., Add user to Domain Admins, Modify ACLs). Authenticated as Administrator.",
+        "Attacker (using the obtained ST): -> DC01: Authenticated Operation (e.g., LDAP modify to add user to DA group, WMI/SMB exec on DC). The operation is authorized based on the identity/groups ('Administrator', 'Domain Admins') embedded in the ST derived from the Golden Ticket.",
       logType: "attack", // Successful privileged action
       action: () => {
-        highlightElement("dc01", stepDelay, "compromised");
-        addTemporaryEdge("attacker", "dc01", "LDAP", "LDAP Modify (as DA)");
+        highlightElement("dc01", stepDelay, "compromised"); // DC compromised
+        addTemporaryEdge("attacker", "dc01", "LDAP", "Privileged Op (as DA)");
       },
     },
     {
       logMessage:
-        "IMPACT: Attacker has achieved Domain Admin level access without knowing any DA password. Can impersonate *any* user by forging tickets. Provides long-term persistence as long as KRBTGT hash isn't changed *twice*.",
+        "IMPACT: Attacker has effectively become a Domain Admin (or any chosen user/groups) without needing a password. They can access any resource and perform any action allowed by the impersonated identity. This provides powerful, domain-wide persistence as long as the KRBTGT hash isn't changed *twice* (to invalidate old and new keys).",
       logType: "success",
     },
   ];
 
   const attackSilverTicketScenario = [
     {
-      scenarioName: "Attack: Silver Ticket",
-      logMessage: "Attacker has compromised service account hash",
+      scenarioName: "Attack: Silver Ticket Forgery & Use",
+      logMessage:
+        "Attacker Goal: Forge a Kerberos Service Ticket (ST/TGS) for a *specific service* on a *specific host*, impersonating a user to access only that service.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has obtained the NTLM hash or AES key of the *service account* hosting the target service (e.g., the 'svc_sql01' account for 'MSSQLSvc/srv_sql01...'). This might come from Kerberoasting, memory dumping, etc.",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
-        highlightElement("srv_sql01");
+        highlightElement("svc_sql01", stepDelay, "compromised"); // Service account hash known
+        highlightElement("srv_sql01"); // Target server hosting the service
       },
     },
     {
-      logMessage: "Attacker -> DC01: LDAP Search (Get service account's SID)",
-      logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Get SID"),
+      logMessage:
+        "Prerequisite 2: Attacker knows the Service Principal Name (SPN) of the target service (e.g., 'MSSQLSvc/srv_sql01.corp.local:1433') and the Domain SID.",
+      logType: "info",
     },
     {
       logMessage:
-        "Attacker: Forges service ticket for MSSQLSvc/SRV-SQL-01.contoso.com",
-      logType: "kerberos",
+        "Attacker: Uses a tool (e.g., Mimikatz, Kekeo, Rubeus) OFFLINE to craft a fraudulent Service Ticket (TGS/ST). The attacker specifies: Target Server FQDN (srv_sql01.corp.local), Target Service SPN (MSSQLSvc/...), User to impersonate (can be *any* user, e.g., 'Administrator' or even a non-existent user!), UserID/Group SIDs (if needed by the service), Domain SID, and signs/encrypts the ticket using the stolen *service account's* hash/key.",
+      logType: "attack", // Offline action using service key
+      action: () => {
+        highlightElement("attacker");
+        highlightElement("admin1"); // Represents the user being impersonated *within* the ticket
+      },
+    },
+    {
+      logMessage:
+        "Attacker: Injects the forged Silver Ticket into their current logon session's memory OR prepares to present it directly.",
+      logType: "attack", // Local action on attacker machine
       action: () => highlightElement("attacker"),
     },
     {
+      // Attacker now directly contacts the TARGET SERVICE, bypassing the KDC for ST validation
       logMessage:
-        "Attacker: Sets ticket flags (forwardable, renewable, pre-authent)",
-      logType: "kerberos",
-      action: () => highlightElement("attacker"),
-    },
-    {
-      logMessage:
-        "Attacker -> SRV-SQL-01: Kerberos AP-REQ (Present forged ticket)",
-      logType: "kerberos",
+        "Attacker -> SRV-SQL-01 (Target Service Host): Kerberos AP-REQ (Presents the forged Silver Ticket directly to the SQL service). ***No TGS-REQ to the DC is needed***.",
+      logType: "attack", // Direct communication with service using forged ST
       action: () =>
-        addTemporaryEdge("attacker", "srv_sql01", "Kerberos", "AP-REQ"),
-    },
-    {
-      logMessage: "SRV-SQL-01: Accepts forged ticket (no KDC validation)",
-      logType: "kerberos",
-      action: () => highlightElement("srv_sql01"),
-    },
-    {
-      logMessage: "Attacker -> SRV-SQL-01: SQL Query (Enable xp_cmdshell)",
-      logType: "sql",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_sql01", "SQL", "Enable xp_cmdshell"),
+        addTemporaryEdge("attacker", "srv_sql01", "Kerberos", "AP-REQ (w/ Silver ST)"),
     },
     {
       logMessage:
-        "Attacker -> SRV-SQL-01: SQL Query (Execute command via xp_cmdshell)",
-      logType: "sql",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_sql01", "SQL", "Execute Command"),
+        "SRV-SQL-01 (Service): Receives the AP-REQ containing the Silver Ticket. It decrypts the ticket using its *own* service account key (the one the attacker stole). Since the decryption works, the service trusts the ticket and the user identity/groups specified inside ('Administrator'). ***The service does NOT contact the KDC (DC) to validate the ST.***",
+      logType: "kerberos", // Service validates using its own key
+      action: () => highlightElement("srv_sql01", stepDelay, "highlighted"), // Service grants access
     },
     {
       logMessage:
-        "SILVER TICKET SUCCESSFUL: Attacker forged service ticket for SQL01. Can now access SQL01 as any user, execute commands with elevated privileges, and potentially run code via xp_cmdshell.",
+        "Attacker -> SRV-SQL-01: Authenticated Service Request (e.g., SQL Query as 'Administrator' to enable xp_cmdshell). The service grants access based on the impersonated identity from the Silver Ticket.",
+      logType: "sql", // Or other protocol depending on the service
+      action: () =>
+        addTemporaryEdge("attacker", "srv_sql01", "SQL", "Exec Cmd (as DA via Silver)"),
+    },
+    {
+      logMessage:
+        "SILVER TICKET SUCCESSFUL: Attacker gained access *specifically to the targeted service* (MSSQL on srv_sql01) as the chosen impersonated user ('Administrator'). Does not grant domain-wide access like a Golden Ticket. Less likely to be detected by DC logs but potentially detectable on the target server.",
       logType: "success",
     },
   ];
@@ -1609,6 +1627,7 @@ document.addEventListener("DOMContentLoaded", function () {
       logType: "success",
     },
   ];
+
   const attackPassTheTicketScenario = [
     {
       scenarioName: "Attack: Pass-the-Ticket (Kerberos)",
@@ -1619,7 +1638,7 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "Prerequisite: Attacker has extracted a valid Kerberos TGT for a user (e.g., Alice) from memory on a compromised machine (host1) using Mimikatz.",
+        "Prerequisite: Attacker has extracted a valid Kerberos TGT for a user (e.g., user1) from memory on a compromised machine (host1) using Mimikatz.",
       logType: "attack",
       action: () => {
         highlightElement("attacker", stepDelay, "compromised"); // Attacker needs initial access
@@ -1629,20 +1648,20 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "Attacker (from their machine, injecting Alice's TGT): -> DC01: Kerberos TGS-REQ (Using Alice's stolen TGT, Requesting ST for service HTTP/srv-web-01...).",
-      logType: "attack", // Attacker initiates, but KDC sees it as Alice
+        "Attacker (from their machine, injecting user1's TGT): -> DC01: Kerberos TGS-REQ (Using user1's stolen TGT, Requesting ST for service HTTP/srv-web-01...).",
+      logType: "attack", // Attacker initiates, but KDC sees it as user1
       action: () =>
         addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (PtT)"),
     },
     {
       logMessage:
-        "DC01: Validates the TGT (it's valid, signed by KRBTGT). Issues ST for the requested service (HTTP/srv-web-01). Sees request as coming from Alice.",
+        "DC01: Validates the TGT (it's valid, signed by KRBTGT). Issues ST for the requested service (HTTP/srv-web-01). Sees request as coming from user1.",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker: Kerberos TGS-REP (Sending ST for HTTP/srv-web-01, usable by Alice).",
+        "DC01 -> Attacker: Kerberos TGS-REP (Sending ST for HTTP/srv-web-01, usable by user1).",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (ST)"),
@@ -1650,62 +1669,78 @@ document.addEventListener("DOMContentLoaded", function () {
     {
       logMessage:
         "Attacker (injecting the received ST): -> SRV-WEB-01: Kerberos AP-REQ (Presenting the ST for HTTP/srv-web-01).",
-      logType: "attack", // Attacker initiates, but service sees it as Alice
+      logType: "attack", // Attacker initiates, but service sees it as user1
       action: () =>
         addTemporaryEdge("attacker", "srv_web01", "Kerberos", "AP-REQ (PtT)"),
     },
     {
       logMessage:
-        "SRV-WEB-01: Decrypts ST (with its service key), validates authenticator. Sees the request is authenticated as 'Alice'. Grants access based on Alice's permissions.",
+        "SRV-WEB-01: Decrypts ST (with its service key), validates authenticator. Sees the request is authenticated as 'user1'. Grants access based on user1's permissions.",
       logType: "kerberos", // Service validates
       action: () => highlightElement("srv_web01", stepDelay, "highlighted"),
     },
     {
       logMessage:
-        "IMPACT: Attacker successfully authenticated to SRV-WEB-01 *as Alice* without knowing her password. Can access resources and perform actions as Alice on that service. Can repeat for any service Alice can access.",
+        "IMPACT: Attacker successfully authenticated to SRV-WEB-01 *as user1* without knowing their password. Can access resources and perform actions as user1 on that service. Can repeat for any service user1 can access.",
       logType: "success",
     },
   ];
+
   const attackPassTheHashScenario = [
     {
       scenarioName: "Attack: Pass-the-Hash",
-      logMessage: "Attacker has obtained user1's NTLM hash",
+      logMessage: "Attacker Goal: Authenticate to services using a stolen NTLM hash.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has obtained user1's NTLM hash (e.g., via Mimikatz on a compromised host).",
       logType: "attack",
       action: () => {
-        highlightElement("attacker");
-        highlightElement("user1");
+        highlightElement("attacker", stepDelay, "compromised");
+        highlightElement("user1"); // Owner of the hash
       },
     },
     {
       logMessage:
-        "Attacker -> DC01: LDAP Search (Check user1's group memberships)",
+        "Attacker -> DC01: LDAP Search (Optional Recon: Check user1's group memberships to identify targets/privileges).",
       logType: "ldap",
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Check Groups"),
+        addTemporaryEdge("attacker", "dc01", "LDAP", "Recon Groups"),
     },
     {
       logMessage:
-        "Attacker -> SRV-WEB-01: SMB Authentication (Using stolen NTLM hash)",
-      logType: "smb",
+        "Attacker -> SRV-WEB-01: SMB Authentication Request (Attempting NTLM authentication using user1's stolen NTLM hash).",
+      logType: "smb", // Or other NTLM-supporting protocols like WMI/RPC
       action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "SMB", "Auth (NTLM)"),
+        addTemporaryEdge("attacker", "srv_web01", "SMB", "Auth Req (PtH)"),
     },
+    // Note: NTLM involves a challenge-response not fully detailed here for simplicity
     {
-      logMessage: "SRV-WEB-01: Authentication successful",
+      logMessage:
+        "SRV-WEB-01: Verifies the NTLM response (derived from the hash). Authentication successful.",
       logType: "success",
-      action: () => highlightElement("srv_web01"),
+      action: () => highlightElement("srv_web01", stepDelay, "highlighted"),
     },
     {
       logMessage:
-        "PASS-THE-HASH SUCCESSFUL: Attacker authenticated as user1. Can now authenticate as user1 to any service, access their resources, and potentially escalate privileges.",
+        "IMPACT: Attacker successfully authenticated to SRV-WEB-01 *as user1* without the password. Can potentially access resources or execute commands (e.g., via SMB/WMI) as user1. Can repeat for other services supporting NTLM.",
       logType: "success",
     },
   ];
+
   const attackUnconstrainedDelegationScenario = [
     {
-      scenarioName: "Attack: Unconstrained Delegation",
+      scenarioName: "Attack: Unconstrained Delegation Abuse",
       logMessage:
-        "Attacker compromises SRV-APP-01 (srv_app01), which has Unconstrained Delegation.",
+        "Attacker Goal: Steal a privileged user's TGT when they authenticate to a compromised server configured for Unconstrained Delegation.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker compromises SRV-APP-01 (srv_app01), which is configured for Kerberos Unconstrained Delegation.",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -1713,74 +1748,75 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Legitimate Admin (admin1) logs onto SRV-APP-01 (e.g., RDP).",
+      logMessage: "Legitimate Admin (admin1) logs onto SRV-APP-01 (e.g., via RDP, WinRM).",
       logType: "info",
       action: () => highlightElement("admin1"),
     },
     {
       logMessage:
-        "Admin (on their machine) -> SRV-APP-01: Kerberos AP-REQ (Auth to srv_app01)",
+        "Admin's Machine -> SRV-APP-01: Kerberos AP-REQ (Authenticating admin1 to srv_app01).",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("admin1", "srv_app01", "Kerberos", "AP-REQ (Admin)"),
     },
     {
       logMessage:
-        "SRV-APP-01: Authenticates Admin. KDC sent Admin's TGT to SRV-APP-01 because of Unconstrained Delegation.",
+        "SRV-APP-01: Authenticates Admin. Crucially, the KDC sent Admin's *forwardable TGT* to SRV-APP-01 because it has Unconstrained Delegation enabled. The TGT is stored in LSASS memory.",
       logType: "kerberos",
       action: () => highlightElement("srv_app01"),
     },
     {
       logMessage:
-        "Attacker (on srv_app01): Uses Mimikatz/Rubeus to extract Admin's forwarded TGT from LSASS memory.",
+        "Attacker (on the compromised srv_app01): Uses Mimikatz/Rubeus to extract Admin's forwarded TGT from LSASS memory.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker (on srv_app01) -> DC01: Kerberos TGS-REQ (Using Admin's TGT, requesting ST for LDAP/dc01...)",
+        "Attacker (on srv_app01, injecting Admin's TGT): -> DC01: Kerberos TGS-REQ (Using Admin's stolen TGT, requesting ST for a sensitive service, e.g., LDAP/dc01...).",
       logType: "attack",
       action: () =>
         addTemporaryEdge("srv_app01", "dc01", "Kerberos", "TGS-REQ (as Admin)"),
     },
     {
-      logMessage: "DC01: Validates TGT (Admin's), issues ST for LDAP service.",
+      logMessage: "DC01: Validates the TGT (it's Admin's), issues ST for the LDAP service.",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker (on srv_app01): Kerberos TGS-REP (ST for LDAP/dc01)",
+        "DC01 -> Attacker (on srv_app01): Kerberos TGS-REP (Sending ST for LDAP/dc01).",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("dc01", "srv_app01", "Kerberos", "TGS-REP (ST)"),
     },
     {
       logMessage:
-        "Attacker (on srv_app01) -> DC01: LDAP Operations (Using ST - Authenticated as Admin!)",
+        "Attacker (on srv_app01, using the obtained ST): -> DC01: LDAP Operations (e.g., modify group memberships, read sensitive data - Authenticated as Admin!).",
       logType: "attack",
       action: () => {
-        highlightElement("dc01", stepDelay, "compromised");
+        highlightElement("dc01", stepDelay, "compromised"); // DC access achieved as Admin
         addTemporaryEdge("srv_app01", "dc01", "LDAP", "LDAP Modify (as Admin)");
       },
     },
     {
       logMessage:
-        "UNCONSTRAINED DELEGATION ABUSE: Attacker used compromised server to get Admin's TGT and impersonate them. Can now impersonate the Domain Admin, access all domain resources, and maintain persistence even if the admin changes their password.",
+        "IMPACT: Attacker leveraged the compromised Unconstrained Delegation server to capture a highly privileged user's TGT. Can now impersonate this user (potentially Domain Admin) across the domain, potentially leading to full domain compromise and persistence (TGT valid until expiry).",
       logType: "success",
     },
   ];
+
   const attackRBCDScenario = [
     {
       scenarioName: "Attack: Resource-Based Constrained Delegation Abuse",
       logMessage:
-        "Attacker Goal: Impersonate a user (e.g., Domain Admin) on a target machine (FILES01) by abusing delegation rights.",
+        "Attacker Goal: Impersonate a user (e.g., Domain Admin) on a specific target machine (SRV-FILES01) by abusing delegation rights configured via object attributes.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite 1: Attacker has compromised an account (e.g., machine account 'host1$') that has permission to write to the 'msDS-AllowedToActOnBehalfOfOtherIdentity' attribute of the target computer object (FILES01).",
+        "Prerequisite 1: Attacker has compromised a principal (e.g., user 'lowpriv' or computer 'host1$') that has permission to write to the 'msDS-AllowedToActOnBehalfOfOtherIdentity' attribute of the target computer object (SRV-FILES01). Let's assume attacker controls 'host1$'.",
       logType: "attack",
       action: () => {
         highlightElement("host1", stepDelay, "compromised"); // Attacker controls this principal
@@ -1789,12 +1825,12 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "Prerequisite 2: Attacker needs credentials for the controlled principal (host1$).",
+        "Prerequisite 2: Attacker needs credentials (e.g., hash or Kerberos ticket) for the controlled principal (host1$).",
       logType: "info",
     },
     {
       logMessage:
-        "Attacker (as host1$) -> DC01: LDAP Modify (Write host1$'s SID to the 'msDS-AllowedToActOnBehalfOfOtherIdentity' attribute on the 'srv_files01' computer object).",
+        "Attacker (using host1$'s credentials): -> DC01: LDAP Modify Request (Write host1$'s SID to the 'msDS-AllowedToActOnBehalfOfOtherIdentity' attribute on the 'srv_files01' computer object). This configures srv_files01 to trust host1$ for delegation.",
       logType: "attack", // The core configuration abuse
       action: () => {
         addTemporaryEdge("host1", "dc01", "LDAP", "LDAP Modify (Set RBCD)");
@@ -1802,27 +1838,27 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "DC01: Validates ACL (host1$ has write permission). Updates attribute on srv_files01.",
+        "DC01: Validates ACL (confirms host1$ has write permission on the attribute for srv_files01). Updates the attribute.",
       logType: "ldap",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "Attacker (using host1$ creds): -> DC01: Kerberos TGS-REQ (S4U2Self - Requesting a service ticket *to himself* for 'host1$' but specifying impersonation of 'DomainAdmin').",
+        "Attacker (using host1$ creds): -> DC01: Kerberos TGS-REQ (S4U2Self - Requesting a service ticket *to host1$ itself*, specifying impersonation of the target victim, e.g., 'DomainAdmin').",
       logType: "attack", // Getting a ticket to self, impersonating victim
       action: () =>
         addTemporaryEdge("host1", "dc01", "Kerberos", "TGS-REQ (S4U2Self)"),
     },
     {
       logMessage:
-        "DC01: Issues a forwardable Service Ticket for 'host1$' (valid for host1$ to use) containing 'DomainAdmin' identity.",
+        "DC01: Validates host1$ can request tickets. Issues a *forwardable* Service Ticket *for host1$* (valid for host1$ to use), containing 'DomainAdmin' identity information inside.",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("dc01", "host1", "Kerberos", "TGS-REP (Self ST)"),
     },
     {
       logMessage:
-        "Attacker (using host1$ creds): -> DC01: Kerberos TGS-REQ (S4U2Proxy - Uses the S4U2Self ticket, requests a ST for 'cifs/files01.corp.local' *as DomainAdmin*).",
+        "Attacker (using host1$ creds and the S4U2Self ticket): -> DC01: Kerberos TGS-REQ (S4U2Proxy - Uses the S4U2Self ticket as evidence, requests a Service Ticket for the target service 'cifs/srv_files01.corp.local' *as DomainAdmin*).",
       logType: "attack", // Requesting ticket to target service
       action: () => {
         addTemporaryEdge("host1", "dc01", "Kerberos", "TGS-REQ (S4U2Proxy)");
@@ -1830,20 +1866,20 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "DC01: Validates request. Checks RBCD on target 'srv_files01': sees 'host1$' is allowed to delegate. Issues ST for 'cifs/files01' usable by 'host1$' but containing 'DomainAdmin' identity.",
+        "DC01: Validates the S4U2Self ticket. Checks RBCD on target 'srv_files01': sees 'host1$' is listed in 'msDS-AllowedToActOnBehalfOfOtherIdentity'. Issues ST for 'cifs/srv_files01' usable by 'host1$' but containing 'DomainAdmin' identity.",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01 -> Attacker (as host1$): Kerberos TGS-REP (ST for cifs/files01, usable *as DomainAdmin*).",
+        "DC01 -> Attacker (as host1$): Kerberos TGS-REP (Sending the Service Ticket for cifs/srv_files01, usable *as DomainAdmin*).",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("dc01", "host1", "Kerberos", "TGS-REP (Proxy ST)"),
     },
     {
       logMessage:
-        "Attacker (injects proxy ST): -> SRV-FILES01: SMB AP-REQ (Presents the proxy ST to access files).",
+        "Attacker (injects the S4U2Proxy ST): -> SRV-FILES01: SMB AP-REQ (Presents the proxy ST to access the file share).",
       logType: "attack", // Using the final ticket
       action: () => {
         highlightElement("srv_files01", stepDelay, "compromised"); // Access achieved
@@ -1857,46 +1893,47 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "SRV-FILES01: Validates ticket. Sees user is 'DomainAdmin'. Grants access with Domain Admin privileges.",
-      logType: "smb",
+        "SRV-FILES01: Validates the ticket (decrypts with its key). Sees the user identity inside is 'DomainAdmin'. Grants access with Domain Admin privileges.",
+      logType: "smb", // Or relevant protocol for the service
     },
     {
       logMessage:
-        "IMPACT: Attacker leveraged control of 'host1' and its write permission on 'srv_files01' to gain Domain Admin-level access specifically *to* srv_files01. Can potentially execute code (e.g., PsExec) or access sensitive data on srv_files01 as DA.",
+        "IMPACT: Attacker leveraged control of 'host1$' and its write permission on 'srv_files01's delegation attribute to gain Domain Admin-level access specifically *to* srv_files01. Can potentially execute code (e.g., PsExec via SMB) or access sensitive data on srv_files01 as the impersonated DA.",
       logType: "success",
     },
   ];
 
   const attackESC1Scenario = [
     {
-      scenarioName: "Attack: AD CS ESC1 (Misconfigured Template ACL + SAN)",
+      scenarioName: "Attack: AD CS ESC1 (Template ACL + ENROLLEE_SUPPLIES_SUBJECT)",
       logMessage:
-        "Attacker Goal: Obtain a certificate allowing authentication as a privileged user (e.g., Domain Admin) by abusing template permissions.",
+        "Attacker Goal: Obtain a certificate allowing authentication as a privileged user (e.g., Domain Admin) by abusing AD CS template permissions and configuration.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite 1: Attacker controls a principal (e.g., compromised 'Bob' - user2) with 'Write' permissions on a Certificate Template object in AD.",
+        "Prerequisite 1: Attacker controls a principal (e.g., compromised standard user 'CORP\\BOB') which has 'Write' permissions on a Certificate Template object in AD (e.g., 'UserTemplateVulnerable').",
       logType: "attack",
       action: () => {
         highlightElement("user2", stepDelay, "compromised"); // Attacker's initial foothold
         highlightElement("ca01"); // Target CA infrastructure
+        highlightElement("dc01"); // AD interaction needed
       },
     },
     {
       logMessage:
-        "Prerequisite 2: The target template does NOT have 'Manager Approval' required.",
+        "Prerequisite 2: The target template ('UserTemplateVulnerable') does NOT require 'Manager Approval' for issuance.",
       logType: "info",
     },
     {
       logMessage:
-        "Prerequisite 3: The CA grants enrollment rights for this template to low-privileged users (or the attacker's user).",
+        "Prerequisite 3: The CA grants enrollment rights for this template to low-privileged users (including the attacker's controlled principal 'CORP\\BOB').",
       logType: "info",
     },
     {
       logMessage:
-        "Attacker (as Bob) -> DC01: LDAP Modify Request (On the vulnerable template object, e.g., 'UserAutoenroll'): Set 'mspki-enrollment-flag' attribute to include the 'CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT' (0x1) flag.",
+        "Attacker (as user2) -> DC01: LDAP Modify Request (Targeting the 'UserTemplateVulnerable' template object): Sets the 'mspki-enrollment-flag' attribute to include the 'CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT' (0x1) flag. This allows the requester to specify a Subject Alternative Name (SAN).",
       logType: "attack", // The key modification enabling SAN abuse
       action: () =>
         addTemporaryEdge(
@@ -1908,20 +1945,20 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "DC01: Updates template object in AD configuration partition.",
+        "DC01: Validates ACL (user2 has Write permission). Updates the template object properties in the AD configuration partition.",
       logType: "ldap",
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "CA01: Periodically refreshes template cache from AD (This can introduce delay).",
+        "CA01: Periodically polls AD and refreshes its template cache. (This introduces a potential delay before the change is active on the CA).",
       logType: "info",
       action: () => highlightElement("ca01"),
-      delay: 2000, // Simulate cache refresh delay
+      delay: 2000, // Simulate cache refresh delay if desired
     },
     {
       logMessage:
-        "Attacker (as Bob) -> CA01: RPC/HTTP Request (Request certificate using the modified 'UserAutoenroll' template. Critically, *supply* a Subject Alternative Name (SAN) field specifying the UPN of a privileged user, e.g., 'DomainAdmin@corp.local').",
+        "Attacker (as user2) -> CA01: Certificate Enrollment Request (RPC/HTTP) (Requests a certificate using the now-modified 'UserTemplateVulnerable' template. Critically, *supplies* a Subject Alternative Name (SAN) field specifying the UPN of a privileged user, e.g., 'DomainAdmin@corp.local').",
       logType: "attack", // Requesting cert, specifying DA identity in SAN
       action: () =>
         addTemporaryEdge(
@@ -1933,26 +1970,26 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "CA01: Checks enrollment permissions (Bob allowed). Sees ENROLLEE_SUPPLIES_SUBJECT flag is now set on template. Allows the supplied SAN. Issues certificate technically *for* Bob but containing the Domain Admin UPN in the SAN.",
+        "CA01: Checks enrollment permissions (user2 allowed). Sees 'ENROLLEE_SUPPLIES_SUBJECT' flag is set on template in its cache. Allows the supplied SAN. Issues a certificate technically *for* user2 but containing the 'DomainAdmin@corp.local' UPN in the SAN.",
       logType: "info", // CA follows the (now malicious) template rules
       action: () => highlightElement("ca01"),
     },
     {
       logMessage:
-        "CA01 -> Attacker (as Bob): RPC/HTTP Response (Issued Certificate with DA UPN in SAN).",
+        "CA01 -> Attacker (as user2): Certificate Response (RPC/HTTP) (Sends the issued certificate, containing the DA UPN in SAN, back to the requester).",
       logType: "rpc", // or HTTP
       action: () =>
         addTemporaryEdge("ca01", "user2", "RPC/HTTP", "Cert Issued (DA SAN!)"),
     },
     {
       logMessage:
-        "Attacker: Possesses a certificate that can be used for DA authentication.",
+        "Attacker: Now possesses a certificate that can be used for Domain Admin authentication.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ (Using PKINIT - Presenting the obtained certificate for pre-authentication).",
+        "Attacker -> DC01: Kerberos AS-REQ (Using PKINIT extension - Presents the obtained certificate for pre-authentication instead of a password hash).",
       logType: "attack", // Using the malicious cert for Kerberos auth
       action: () =>
         addTemporaryEdge(
@@ -1964,22 +2001,22 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     {
       logMessage:
-        "DC01: Validates certificate chain. Extracts UPN 'DomainAdmin@corp.local' from the SAN. Treats request as coming from DomainAdmin. Issues TGT for DomainAdmin.",
-      logType: "kerberos", // DC accepts cert based on SAN
+        "DC01: Validates certificate chain/trust. Extracts the UPN 'DomainAdmin@corp.local' from the SAN. Treats the request as coming from the legitimate Domain Admin. Issues a TGT for the Domain Admin.",
+      logType: "kerberos", // DC accepts cert based on SAN for authentication
       action: () => {
         highlightElement("dc01");
-        highlightElement("admin1", stepDelay, "compromised"); // Attacker now has DA TGT
+        highlightElement("admin1", stepDelay, "compromised"); // Assuming admin1 represents the DA account visually
       },
     },
     {
-      logMessage: "DC01 -> Attacker: Kerberos AS-REP (TGT for DomainAdmin!).",
+      logMessage: "DC01 -> Attacker: Kerberos AS-REP (Sending TGT for DomainAdmin!).",
       logType: "kerberos",
       action: () =>
         addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (DA TGT!)"),
     },
     {
       logMessage:
-        "IMPACT: Attacker exploited template ACLs to modify a template, allowing SAN specification during enrollment. Resulted in obtaining a certificate valid for Domain Admin authentication, leading to a DA TGT. Full domain compromise likely.",
+        "IMPACT: Attacker exploited weak template ACLs to modify a certificate template, enabling SAN specification during enrollment. This allowed obtaining a certificate valid for Domain Admin authentication via Kerberos PKINIT, leading to the acquisition of a DA TGT. Full domain compromise is highly likely.",
       logType: "success",
     },
   ];
@@ -1988,351 +2025,452 @@ document.addEventListener("DOMContentLoaded", function () {
     {
       scenarioName: "Attack: DCSync",
       logMessage:
-        "Attacker Goal: Obtain password hashes (especially KRBTGT) by mimicking DC replication.",
+        "Attacker Goal: Obtain password hashes (especially KRBTGT hash) by abusing Domain Replication privileges to mimic Domain Controller replication.",
       logType: "attack",
       action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Prerequisite: Attacker has compromised credentials with Domain Replication rights ('Replicating Directory Changes' & 'Replicating Directory Changes All'). E.g., Domain Admin (admin1) or specific delegate.",
+        "Prerequisite: Attacker has compromised credentials (or a Kerberos ticket) for an account possessing Domain Replication rights ('Replicating Directory Changes' & 'Replicating Directory Changes All'). E.g., a Domain Admin (admin1) or a specially delegated account.",
       logType: "attack",
       action: () => {
+        highlightElement("attacker");
         highlightElement("admin1", stepDelay, "compromised"); // Account with required rights
       },
     },
     {
       logMessage:
-        "Attacker (using admin1 creds/ticket) -> DC01: RPC Bind Request (Targeting Directory Replication Service Remote Protocol - MS-DRSR).",
+        "Attacker (using admin1 credentials/ticket) -> DC01: RPC Bind Request (Connects to the Directory Replication Service Remote Protocol - MS-DRSR - endpoint on the target DC).",
       logType: "rpc",
       action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Bind DRSR"),
     },
     {
       logMessage:
-        "Attacker -> DC01: DRSR DRSUAPI GetNCChanges Request (Requesting replication updates for the Domain NC, specifically asking for secrets like password hashes).",
-      logType: "attack", // Malicious use of replication protocol
+        "Attacker -> DC01: DRSR Remote Procedure Call (e.g., using DRSUAPI GetNCChanges function): Requests replication updates for the Domain Naming Context, specifically asking for sensitive data including password hashes (by requesting specific attributes).",
+      logType: "attack", // Malicious use of legitimate replication protocol
       action: () =>
-        addTemporaryEdge("attacker", "dc01", "DRSUAPI", "GetNCChanges"),
+        addTemporaryEdge("attacker", "dc01", "DRSUAPI", "GetNCChanges Request"),
     },
     {
       logMessage:
-        "DC01: Receives request. Verifies via ACL check that the requesting user (admin1) has the required DS-Replication-Get-Changes privileges.",
-      logType: "info", // DC performs authorization check
+        "DC01: Receives the GetNCChanges request. Verifies via Access Control checks that the requesting user (authenticated as admin1) possesses the required privileges (DS-Replication-Get-Changes / DS-Replication-Get-Changes-All).",
+      logType: "info", // DC performs standard authorization check
       action: () => highlightElement("dc01"),
     },
     {
       logMessage:
-        "DC01: Accesses its local AD database (ntds.dit) to retrieve requested object data, including sensitive attributes like NTLM hashes and Kerberos keys.",
-      logType: "info", // Internal DC action
+        "DC01: If authorized, accesses its local Active Directory database (ntds.dit) to retrieve the requested object data, including sensitive attributes like NTLM hashes, Kerberos keys (past and present for krbtgt), etc.",
+      logType: "info", // Internal DC action accessing sensitive store
       action: () =>
-        addTemporaryEdge("dc01", "dc01", "DB Access", "Read Secrets"),
+        addTemporaryEdge("dc01", "dc01", "DB Access", "Read Secrets from NTDS.dit"), // Self-loop indicating internal process
     },
     {
       logMessage:
-        "DC01 -> Attacker: DRSR DRSUAPI GetNCChanges Response (Streams replication data containing requested objects and their secrets, including krbtgt hash, admin hashes, etc.).",
-      logType: "attack", // Sensitive data exfiltration
+        "DC01 -> Attacker: DRSR GetNCChanges Response (Streams the requested replication data back to the 'replicating DC' - which is actually the attacker. This data contains the objects and their requested attributes, including krbtgt hash, admin account hashes, etc.).",
+      logType: "attack", // Sensitive data exfiltration via replication channel
       action: () => {
         highlightElement("krbtgt", stepDelay, "compromised"); // Key target obtained
-        addTemporaryEdge("dc01", "attacker", "DRSUAPI", "Repl Resp (Secrets!)");
+        addTemporaryEdge("dc01", "attacker", "DRSUAPI", "GetNCChanges Resp (Secrets!)");
       },
     },
     {
       logMessage:
-        "IMPACT: Attacker has obtained critical domain secrets, most importantly the KRBTGT account's hash. Can now forge Golden Tickets offline, granting arbitrary access as any user, achieving domain dominance and persistence.",
+        "IMPACT: Attacker has obtained critical domain secrets remotely without needing code execution on the DC. Most importantly, the KRBTGT account's hash allows the attacker to forge Kerberos Golden Tickets offline, granting domain-wide administrative access as any user, achieving effective domain dominance and long-term persistence.",
       logType: "success",
     },
   ];
 
+  // --- SQL Access (Post-Roast) ---
   const attackSQLAccessScenario = [
     {
-      scenarioName: "Attack: Access SQL Server (Post-Roast)",
-      logMessage:
-        "Attacker previously Kerberoasted svc_sql01 and cracked its hash/password.",
-      logType: "attack",
+      scenarioName: "Attack: SQL Access (Post-Roast)",
+      logMessage: "Prerequisite: Attacker previously Kerberoasted SPN 'MSSQLSvc/sql01.domain.com' associated with 'svc_sql01' account and cracked its password/hash.",
+      logType: "setup",
       action: () => {
         highlightElement("attacker");
-        highlightElement("svc_sql01", stepDelay, "compromised");
+        highlightElement("svc_sql01");
       },
     },
     {
-      logMessage:
-        "Attacker -> DC01: Kerberos AS-REQ (Requesting TGT for svc_sql01 using cracked creds)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (svc_sql01)"),
-    },
-    {
-      logMessage:
-        "DC01 -> Attacker: Kerberos AS-REP (Issuing TGT for svc_sql01)",
+      logMessage: "Attacker -> DC01: Kerberos AS-REQ (Request TGT for svc_sql01 using cracked creds)",
       logType: "kerberos",
-      action: () =>
-        addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (TGT)"),
+      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (svc_sql01)"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: Kerberos TGS-REQ (Using TGT, Requesting ST for MSSQLSvc/sql01...)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (SQL)"),
-    },
-    {
-      logMessage: "DC01 -> Attacker: Kerberos TGS-REP (Issuing ST for SQL01)",
+      logMessage: "DC01 -> Attacker: Kerberos AS-REP (Issues TGT for svc_sql01)",
       logType: "kerberos",
-      action: () =>
-        addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (ST)"),
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (TGT)"),
     },
     {
-      logMessage:
-        "Attacker -> SQL01 (srv_sql01): Kerberos AP-REQ (Presenting ST for SQL Service)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_sql01", "Kerberos", "AP-REQ (SQL)"),
-    },
-    {
-      logMessage:
-        "SQL01: Validates ticket. Attacker authenticated as svc_sql01.",
+      logMessage: "Attacker -> DC01: Kerberos TGS-REQ (Using TGT, Request ST for SPN 'MSSQLSvc/sql01.domain.com')",
       logType: "kerberos",
+      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (SQL SPN)"),
+    },
+    {
+      logMessage: "DC01 -> Attacker: Kerberos TGS-REP (Issues Service Ticket for SQL Server)",
+      logType: "kerberos",
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (SQL ST)"),
+    },
+    {
+      logMessage: "Attacker -> SQL Server (srv_sql01): TDS Login Request with Kerberos AP-REQ (Presenting ST)",
+      logType: "tds", // Tabular Data Stream (SQL Protocol)
+      action: () => addTemporaryEdge("attacker", "srv_sql01", "TDS/Kerberos", "Login (AP-REQ)"),
+    },
+    {
+      logMessage: "SQL Server (srv_sql01): Validates Kerberos ticket, authenticates attacker as svc_sql01.",
+      logType: "tds",
       action: () => highlightElement("srv_sql01"),
     },
     {
-      logMessage:
-        "Attacker -> SQL01: Executes SQL commands (e.g., xp_cmdshell if enabled, sensitive data query)",
-      logType: "attack",
-      action: () => {
-        highlightElement("srv_sql01", stepDelay, "compromised");
-        addTemporaryEdge(
-          "attacker",
-          "srv_sql01",
-          "HTTP",
-          "SQL Query/Cmd"
-        ); /* Using HTTP as placeholder for TDS protocol */
-      },
+      logMessage: "Attacker -> SQL Server (srv_sql01): Executes SQL commands via TDS (e.g., SELECT @@version, xp_cmdshell 'whoami')",
+      logType: "tds",
+      action: () => addTemporaryEdge("attacker", "srv_sql01", "TDS", "SQL Query/Exec"),
     },
     {
-      logMessage:
-        "SQL ACCESS SUCCESSFUL: Attacker connects to SQL01 as service account. Can now execute SQL queries as svc_sql01, potentially run code via xp_cmdshell, and access sensitive database data.",
+      logMessage: "SQL Server (srv_sql01) -> Attacker: TDS Response (Query results / command output)",
+      logType: "tds",
+      action: () => addTemporaryEdge("srv_sql01", "attacker", "TDS", "SQL Result"),
+    },
+    {
+      logMessage: "SQL ACCESS SUCCESSFUL: Attacker authenticated to SQL Server as the service account via Kerberos. Can now interact with the database, potentially execute OS commands (xp_cmdshell), and exfiltrate data.",
       logType: "success",
     },
-  ];
+  ]
+
+  // --- Remote Service Exec (PsExec-like) ---
   const attackRemoteExecScenario = [
     {
       scenarioName: "Attack: Remote Service Exec (PsExec-like)",
-      logMessage:
-        "Attacker has compromised creds (e.g., Alice's hash via PtH, or DA ticket)",
-      logType: "attack",
+      logMessage: "Prerequisite: Attacker has credentials (hash, password, ticket) for a user (e.g., 'AdminUser') with *Local Administrator* rights on the target (SRV-WEB-01).",
+      logType: "setup",
       action: () => {
         highlightElement("attacker");
-        highlightElement("user1");
+        highlightElement("admin1");
       },
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: SMB Authentication (using stolen hash/ticket)",
+      logMessage: "Attacker -> SRV-WEB-01: SMB Negotiate & Session Setup (Authenticate as AdminUser using stolen creds)",
+      logType: "smb", // This implicitly uses NTLM or Kerberos
+      action: () => addTemporaryEdge("attacker", "srv_web01", "SMB", "Authenticate (Admin)"),
+    },
+    {
+      logMessage: "SRV-WEB-01 -> Attacker: SMB Session Setup Success",
       logType: "smb",
-      action: () => {
-        addTemporaryEdge("attacker", "srv_web01", "SMB", "Auth (SMB)");
-        addTemporaryEdge("attacker", "srv_web01", "NTLM", "Auth (NTLM/Kerb)");
-      },
+      action: () => addTemporaryEdge("srv_web01", "attacker", "SMB", "Auth Success"),
     },
     {
-      logMessage: "SRV-WEB-01: Authentication successful.",
-      logType: "success",
+      logMessage: "Attacker -> SRV-WEB-01: SMB Write Request (Copy malicious 'payload.exe' to ADMIN$ or C$ share)",
+      logType: "smb",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "SMB", "Write Payload (ADMIN$)"),
+    },
+    {
+      logMessage: "SRV-WEB-01 -> Attacker: SMB Write Response Success",
+      logType: "smb",
+      action: () => addTemporaryEdge("srv_web01", "attacker", "SMB", "Write Success"),
+    },
+    {
+      logMessage: "Attacker -> SRV-WEB-01: RPC Bind (Connect to Service Control Manager pipe 'svcctl')",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "SCM Bind (svcctl)"),
+    },
+    {
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (OpenSCManagerW)",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "SCM Open"),
+    },
+    {
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (CreateServiceW - pointing to 'C:\\Windows\\payload.exe', auto-start, own process)",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "CreateService"),
+    },
+    {
+      logMessage: "SRV-WEB-01 (SCM): Creates the malicious service ('EvilService').",
+      logType: "internal",
       action: () => highlightElement("srv_web01"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: SMB Write Request (ADMIN$ share - copy malicious executable)",
-      logType: "smb",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "SMB", "Write ADMIN$"),
-    },
-    {
-      logMessage: "SRV-WEB-01: File written successfully.",
-      logType: "smb",
-      action: () => {},
-    },
-    {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Connect to Service Control Manager - SCM) [UUID: 367ABB81-9844-35F1-AD32-98F038001003]",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (StartService 'EvilService')",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "SCM Connect"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "StartService"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (SCM: CreateService - Win32_Own_Process, Auto_Start)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "CreateService"),
-    },
-    {
-      logMessage:
-        "SRV-WEB-01: Service 'UpdateService' created (SYSTEM privileges).",
-      logType: "rpc",
-    },
-    {
-      logMessage: "Attacker -> SRV-WEB-01: RPC Call (SCM: StartService)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "StartService"),
-    },
-    {
-      logMessage:
-        "SRV-WEB-01: Service started successfully (SYSTEM privileges).",
-      logType: "attack",
+      logMessage: "SRV-WEB-01: Service 'EvilService' starts, executing 'payload.exe' (typically as SYSTEM).",
+      logType: "execution",
       action: () => highlightElement("srv_web01", stepDelay, "compromised"),
     },
+    // --- Cleanup ---
     {
-      logMessage: "Attacker -> SRV-WEB-01: RPC Call (SCM: DeleteService)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (DeleteService 'EvilService')",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "DeleteService"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "DeleteService"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: SMB Delete Request (Remove malicious executable)",
+      logMessage: "Attacker -> SRV-WEB-01: SMB Delete Request (Remove 'payload.exe' from ADMIN$/C$)",
       logType: "smb",
-      action: () => addTemporaryEdge("attacker", "srv_web01", "SMB", "Delete"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "SMB", "Delete Payload"),
     },
     {
-      logMessage:
-        "REMOTE EXECUTION SUCCESSFUL: Attacker executed code on SRV-WEB-01 with SYSTEM privileges.",
+      logMessage: "REMOTE EXECUTION SUCCESSFUL: Attacker uploaded and executed a payload on SRV-WEB-01, typically achieving SYSTEM-level code execution.",
       logType: "success",
     },
-  ];
+  ]
 
+  // --- Shadow Credentials ---
   const attackShadowCredentialsScenario = [
     {
-      scenarioName: "Attack: Shadow Credentials",
-      logMessage:
-        "Attacker compromises a machine account (host1) with write access to target user (user1)",
-      logType: "attack",
+      scenarioName: "Attack: Shadow Credentials (Key Trust)",
+      logMessage: "Prerequisite: Attacker controls account 'host1$' (e.g., compromised machine) which has write permissions (e.g., GenericWrite) over target account 'user1'.",
+      logType: "setup",
       action: () => {
         highlightElement("attacker");
-        highlightElement("host1", stepDelay, "compromised");
+        highlightElement("host1", stepDelay, "compromised"); // Show host1 is controlled
       },
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Enumerate machine account permissions)",
+      logMessage: "Attacker -> DC01: LDAP Search (Check effective rights of 'host1$' on 'user1')",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Search Permissions"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Check Rights (host1$ -> user1)"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Check if target user has msDS-KeyCredentialLink attribute)",
-      logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Check KeyCredential"),
-    },
-    {
-      logMessage:
-        "Attacker: Generates new certificate using PKINIT template (Key Usage: Digital Signature, Key Encipherment)",
-      logType: "attack",
+      logMessage: "Attacker (Offline): Generates a new public/private key pair and self-signed certificate.",
+      logType: "offline_action",
       action: () => highlightElement("attacker"),
     },
     {
-      logMessage:
-        "Attacker: Sets certificate validity period and subject alternative name",
-      logType: "attack",
-      action: () => highlightElement("attacker"),
-    },
-    {
-      logMessage:
-        "Attacker -> DC01: LDAP Modify (Add KeyCredential to target user)",
-      logType: "attack",
-      action: () => {
-        highlightElement("user1");
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Add KeyCredential");
-      },
-    },
-    {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Verify KeyCredential was added)",
+      logMessage: "Attacker -> DC01: LDAP Bind Request (Authenticate as 'host1$' using its credentials)",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Verify KeyCredential"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Bind (host1$)"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: PKINIT Authentication (Using new certificate)",
+      logMessage: "Attacker -> DC01: LDAP Modify Request (Add attacker's public key to 'user1's 'msDS-KeyCredentialLink' attribute, authenticated as 'host1$')",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Modify msDS-KeyCredentialLink (user1)"),
+    },
+    {
+      logMessage: "DC01: Updates 'user1' object based on 'host1$'s permissions.",
+      logType: "internal",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage: "DC01 -> Attacker: LDAP Modify Response (Success)",
+      logType: "ldap",
+      action: () => addTemporaryEdge("dc01", "attacker", "LDAP", "Modify Success"),
+    },
+    // --- Authentication using the shadow credential ---
+    {
+      logMessage: "Attacker -> DC01: Kerberos AS-REQ with PA-PK-AS-REQ (Authenticate as 'user1' using the newly added key/certificate - PKINIT)",
       logType: "kerberos",
-      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "PKINIT"),
+      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ PKINIT (user1)"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Modify (Remove KeyCredential after use)",
+      logMessage: "DC01: Validates certificate against 'user1's 'msDS-KeyCredentialLink'.",
+      logType: "internal",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage: "DC01 -> Attacker: Kerberos AS-REP (Issues TGT for 'user1')",
+      logType: "kerberos",
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (TGT for user1)"),
+    },
+    {
+      logMessage: "Attacker -> DC01: LDAP Modify Request (Remove attacker's key from 'user1's 'msDS-KeyCredentialLink', authenticated as 'host1$')",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Remove KeyCredential"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Remove KeyCredential"),
     },
     {
-      logMessage:
-        "SHADOW CREDENTIALS SUCCESSFUL: Attacker gained access as target user with certificate-based authentication.",
+      logMessage: "SHADOW CREDENTIALS SUCCESSFUL: Attacker added a key credential to the target user via a compromised account with write permissions. Attacker can now authenticate as the target user using certificate-based Kerberos (PKINIT).",
       logType: "success",
     },
-  ];
+  ]
 
+
+  // --- PrintNightmare ---
   const attackPrintNightmareScenario = [
     {
       scenarioName: "Attack: PrintNightmare",
-      logMessage: "Attacker discovers vulnerable print server (srv_files01)",
-      logType: "attack",
+      logMessage: "Prerequisite: Target (SRV-FILES01) runs Print Spooler service, is vulnerable (CVE-2021-1675/34527 - Point/Print or driver install restrictions not configured securely). Attacker has valid domain user credentials (can be low-priv 'user1').",
+      logType: "setup",
       action: () => {
         highlightElement("attacker");
-        highlightElement("srv_files01");
+        highlightElement("srv_files01"); // Target Print Server
       },
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Find print server's SPN and configuration)",
-      logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Find Print Server"),
-    },
-    {
-      logMessage:
-        "Attacker -> SRV-FILES01: RPC Bind (Connect to Print System Remote Protocol)",
+      logMessage: "Attacker -> SRV-FILES01: RPC Bind (Connect to Print Spooler service pipe 'spoolss' - MS-RPRN protocol)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "RPC", "Bind Print System"),
+      action: () => addTemporaryEdge("attacker", "srv_files01", "RPC", "Bind Spoolss"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-FILES01: RPC Call (Add printer driver with malicious DLL path)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "RPC", "Add Driver"),
+      logMessage: "Attacker -> SRV-FILES01: RPC Call (RpcAddPrinterDriverEx - specifying a malicious driver path, e.g., \\\\attacker_ip\\share\\evil.dll)",
+      logType: "rpc", // MS-RPRN
+      action: () => addTemporaryEdge("attacker", "srv_files01", "RPC", "RpcAddPrinterDriverEx"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-FILES01: RPC Call (Point printer to malicious DLL)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "RPC", "Set Driver"),
+      logMessage: "SRV-FILES01 (Print Spooler): Attempts to load the specified driver DLL (evil.dll) from attacker's path.",
+      logType: "internal", // Service action
+      action: () => highlightElement("srv_files01"),
     },
     {
-      logMessage: "Attacker -> SRV-FILES01: RPC Call (Trigger driver load)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "RPC", "Load Driver"),
+      logMessage: "SRV-FILES01 -> Attacker's Machine: SMB Request (Fetch evil.dll)",
+      logType: "smb", // Spooler fetches DLL
+      action: () => addTemporaryEdge("srv_files01", "attacker", "SMB", "Fetch DLL"),
     },
     {
-      logMessage: "SRV-FILES01: Loads malicious DLL with SYSTEM privileges",
-      logType: "attack",
+      logMessage: "SRV-FILES01 (Print Spooler): Loads 'evil.dll' into its process (running as SYSTEM).",
+      logType: "execution",
       action: () => highlightElement("srv_files01", stepDelay, "compromised"),
     },
     {
+      logMessage: "PRINTNIGHTMARE SUCCESSFUL: Attacker exploited vulnerability in Print Spooler service to achieve remote code execution as SYSTEM on SRV-FILES01 by forcing it to load a malicious DLL.",
+      logType: "success",
+    },
+  ]
+
+
+  // --- NTLM Relay (SMB -> LDAP example) ---
+  const attackNTLMRelayScenario = [
+    {
+      scenarioName: "Attack: NTLM Relay (SMB -> LDAP example)",
+      logMessage: "Prerequisite: Attacker can trigger authentication from a victim (e.g., 'host1$') to the attacker machine (via PrinterBug, LLMNR Poisoning, etc.). Target LDAP service (DC01) does not enforce LDAP signing/channel binding. Relay target (AD CS Web Enrollment) is vulnerable.",
+      logType: "setup",
+      action: () => {
+        highlightElement("attacker");
+        highlightElement("host1"); // Victim machine
+        highlightElement("dc01"); // Target LDAP
+        highlightElement("ca01");
+      },
+    },
+    {
+      logMessage: "Attacker triggers 'host1$' to authenticate to Attacker's machine (e.g., via PrinterBug forcing SMB auth)",
+      logType: "trigger", // Conceptual trigger step
+      action: () => addTemporaryEdge("attacker", "host1", "Trigger", "Coerce Auth"),
+    },
+    {
+      logMessage: "Victim (host1$) -> Attacker: SMB Negotiate & Session Setup / NTLM Negotiate (Type 1)",
+      logType: "ntlm", // Victim initiates auth TO attacker
+      action: () => addTemporaryEdge("host1", "attacker", "NTLM", "Negotiate (Type 1)"),
+    },
+    // --- Relay START ---
+    {
+      logMessage: "Attacker -> Target LDAP (DC01): LDAP Bind Request (Forwarding NTLM Type 1 Info)",
+      logType: "ntlm_relay",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP/NTLM", "Relay Type 1"),
+    },
+    {
+      logMessage: "Target LDAP (DC01) -> Attacker: LDAP Bind Response / NTLM Challenge (Type 2)",
+      logType: "ntlm_relay",
+      action: () => addTemporaryEdge("dc01", "attacker", "LDAP/NTLM", "Relay Type 2 (Challenge)"),
+    },
+    {
+      logMessage: "Attacker -> Victim (host1$): SMB Response / Forward NTLM Challenge (Type 2)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("attacker", "host1", "NTLM", "Challenge (Type 2)"),
+    },
+    {
+      logMessage: "Victim (host1$) -> Attacker: SMB Session Setup / NTLM Authenticate (Type 3 - Response)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("host1", "attacker", "NTLM", "Authenticate (Type 3)"),
+    },
+    {
+      logMessage: "Attacker -> Target LDAP (DC01): LDAP Bind Request / Forward NTLM Authenticate (Type 3)",
+      logType: "ntlm_relay",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP/NTLM", "Relay Type 3"),
+    },
+    {
+      logMessage: "Target LDAP (DC01): Authenticates relayed session (as 'host1$'). Grants LDAP access.",
+      logType: "internal",
+      action: () => highlightElement("dc01", stepDelay, "compromised_session"), // Show successful relay to LDAP
+    },
+    // --- Post-Relay Action (Example: AD CS Abuse) ---
+    {
+      logMessage: "Attacker (relayed as host1$) -> AD CS Server: HTTP Request (Request certificate via Web Enrollment)",
+      logType: "http", // Assumes ADCS server element exists
+      action: () => addTemporaryEdge("attacker", "adcs_server", "HTTP", "Cert Request (Relayed)"),
+    },
+    {
+      logMessage: "AD CS Server: Issues certificate for 'host1$'.",
+      logType: "internal",
+      action: () => highlightElement("adcs_server"),
+    },
+    {
+      logMessage: "AD CS Server -> Attacker: HTTP Response (Certificate Download)",
+      logType: "http",
+      action: () => addTemporaryEdge("adcs_server", "attacker", "HTTP", "Cert Download"),
+    },
+    {
+      logMessage: "Attacker: Obtains certificate for 'host1$', can now authenticate as machine.",
+      logType: "result",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage: "NTLM RELAY SUCCESSFUL: Attacker coerced authentication from a victim and relayed it to a target service (LDAP/AD CS). Attacker potentially gained a certificate for the victim machine account, enabling further impersonation/attacks.",
+      logType: "success",
+    },
+  ]
+
+  const attackLLMNRPoisoningScenario = [
+    {
+      scenarioName: "Attack: LLMNR/NBT-NS Poisoning & NTLM Relay/Capture",
+      logMessage: "Attacker starts LLMNR/NBT-NS poisoner and NTLM Relay/Capture server (e.g., Responder)",
+      logType: "setup",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage: "User (user1) attempts to access a non-existent or mistyped network resource (e.g., \\\\fileshar\\)",
+      logType: "user_action",
+      action: () => highlightElement("user1"),
+    },
+    {
+      logMessage: "User (user1) -> Network: Broadcasts LLMNR/NBT-NS Query for 'fileshar'",
+      logType: "llmnr_nbtns", // Combined type
+      action: () => addTemporaryEdge("user1", "network", "LLMNR/NBT-NS", "Query"), // network is conceptual here
+    },
+    {
+      logMessage: "Attacker -> User (user1): LLMNR/NBT-NS Spoofed Response ('fileshar' is at Attacker's IP)",
+      logType: "llmnr_nbtns",
+      action: () => addTemporaryEdge("attacker", "user1", "LLMNR/NBT-NS", "Spoofed Reply"),
+    },
+    {
+      logMessage: "User (user1) -> Attacker: Attempts SMB connection based on spoofed response",
+      logType: "smb",
+      action: () => addTemporaryEdge("user1", "attacker", "SMB", "Connection Attempt"),
+    },
+    {
+      logMessage: "User (user1) -> Attacker: Sends NTLM Authentication (Negotiate - Type 1)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("user1", "attacker", "NTLM", "Negotiate (Type 1)"),
+    },
+    {
+      logMessage: "Attacker -> User (user1): Sends NTLM Challenge (Type 2)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("attacker", "user1", "NTLM", "Challenge (Type 2)"),
+    },
+    {
+      logMessage: "User (user1) -> Attacker: Sends NTLM Response (Authenticate - Type 3 with NTLMv1/v2 Hash)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("user1", "attacker", "NTLM", "Response (Type 3)"),
+    },
+    {
+      logMessage: "Attacker (Relay): Forwards NTLM credentials to target server (e.g., SRV-FILES01)",
+      logType: "ntlm_relay",
+      action: () => addTemporaryEdge("attacker", "srv_files01", "NTLM", "Relay Auth"), // Assuming srv_files01 exists
+    },
+    {
+      logMessage: "Target Server (SRV-FILES01): Grants access based on relayed user1 credentials",
+      logType: "result",
+      action: () => highlightElement("srv_files01"), // Show compromised server
+    },
+    {
       logMessage:
-        "PRINTNIGHTMARE SUCCESSFUL: Attacker gains SYSTEM privileges on print server. Can now execute arbitrary code with SYSTEM privileges, access all resources on the server, and maintain persistence.",
+        "LLMNR/NBT-NS POISONING SUCCESSFUL: Attacker intercepted authentication attempt. Captured NTLM hash for offline cracking OR relayed authentication to another service, potentially gaining access as user1.",
       logType: "success",
     },
   ];
 
-  const attackNTLMRelayScenario = [
+  const attackLDAPReconScenario = [
     {
-      scenarioName: "Attack: NTLM Relay",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: LDAP Reconnaissance",
+      logMessage: "Attacker (authenticated user) targets Domain Controller (DC01) for LDAP recon",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -2340,247 +2478,95 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Find servers with SMB signing disabled)",
+      logMessage: "Attacker -> DC01: LDAP Bind Request (Authenticate to LDAP service)",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Find Targets"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Bind"),
     },
     {
-      logMessage: "Attacker -> DC01: LDAP Search (Check target server's SPNs)",
+      logMessage: "DC01 -> Attacker: LDAP Bind Success",
       logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Check SPNs"),
+      action: () => addTemporaryEdge("dc01", "attacker", "LDAP", "Bind Success"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Search (Check target server's delegation settings)",
+      logMessage: "Attacker -> DC01: LDAP Search (Query RootDSE for naming contexts)",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Check Delegation"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Query RootDSE"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: HTTP Request (Trigger NTLM authentication)",
-      logType: "http",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "HTTP", "Trigger Auth"),
-    },
-    {
-      logMessage: "DC01 -> Attacker: NTLM Type 1 Message (Challenge)",
-      logType: "ntlm",
-      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "Type 1"),
-    },
-    {
-      logMessage: "Attacker -> DC01: NTLM Type 2 Message (Response)",
-      logType: "ntlm",
-      action: () => addTemporaryEdge("attacker", "dc01", "NTLM", "Type 2"),
-    },
-    {
-      logMessage: "DC01 -> Attacker: NTLM Type 3 Message (Authentication)",
-      logType: "ntlm",
-      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "Type 3"),
-    },
-    {
-      logMessage:
-        "DC01: Validates NTLM authentication (Checks user credentials)",
-      logType: "ntlm",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "DC01: Verifies user permissions (Checks group memberships)",
-      logType: "ntlm",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "DC01: Validates SMB signing (Checks if signing is required)",
-      logType: "smb",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Check for RBCD rights)",
+      logMessage: "Attacker -> DC01: LDAP Search (Enumerate Domain Users - e.g., '(objectCategory=person)')",
       logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Check RBCD"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Enum Users"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: LDAP Modify (Set msDS-AllowedToActOnBehalfOfOtherIdentity if needed)",
+      logMessage: "Attacker -> DC01: LDAP Search (Enumerate Domain Computers - e.g., '(objectCategory=computer)')",
       logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Set RBCD"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Enum Computers"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: SMB Session Setup (Relay captured NTLM authentication)",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Relay Auth"),
-    },
-    {
-      logMessage:
-        "DC01: Validates NTLM authentication (Checks relayed credentials)",
-      logType: "smb",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "DC01: Verifies RBCD permissions (Checks delegation rights)",
-      logType: "smb",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "Attacker -> DC01: SMB Tree Connect (Access ADMIN$ share)",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Tree Connect"),
-    },
-    {
-      logMessage: "DC01: Validates share access (Checks share permissions)",
-      logType: "smb",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage: "Attacker -> DC01: SMB Write (Copy malicious executable)",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Write File"),
-    },
-    {
-      logMessage: "DC01: Validates file write permissions (Checks ACLs)",
-      logType: "smb",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage:
-        "Attacker -> DC01: RPC Call (Create service pointing to dropped executable)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "RPC", "Create Service"),
-    },
-    {
-      logMessage:
-        "DC01: Validates service creation rights (Checks service permissions)",
-      logType: "rpc",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage:
-        "NTLM RELAY SUCCESSFUL: Attacker executed code on DC. Can now execute arbitrary code on the domain controller, access all domain resources, and maintain persistence.",
-      logType: "success",
-    },
-  ];
-
-  const attackLLMNRPoisoningScenario = [
-    {
-      scenarioName: "Attack: LLMNR/NBT-NS Poisoning",
-      logMessage: "Attacker sets up rogue LLMNR/NBT-NS responder",
-      logType: "attack",
-      action: () => highlightElement("attacker"),
-    },
-    {
-      logMessage:
-        "User (user1) -> Network: LLMNR Query (for non-existent share)",
-      logType: "dns",
-      action: () => highlightElement("user1"),
-    },
-    {
-      logMessage: "Attacker -> User: LLMNR Response (spoofed IP)",
-      logType: "attack",
-      action: () =>
-        addTemporaryEdge("attacker", "user1", "DNS", "Spoofed Response"),
-    },
-    {
-      logMessage: "User -> Attacker: SMB Session Setup (NTLM Type 1 Message)",
-      logType: "smb",
-      action: () => addTemporaryEdge("user1", "attacker", "SMB", "NTLM Type 1"),
-    },
-    {
-      logMessage:
-        "Attacker -> User: SMB Session Setup Response (NTLM Type 2 Challenge)",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "user1", "SMB", "NTLM Type 2"),
-    },
-    {
-      logMessage:
-        "User -> Attacker: SMB Session Setup (NTLM Type 3 Response with hash)",
-      logType: "smb",
-      action: () => addTemporaryEdge("user1", "attacker", "SMB", "NTLM Type 3"),
-    },
-    {
-      logMessage: "Attacker -> User: SMB Tree Connect (Access share)",
-      logType: "smb",
-      action: () =>
-        addTemporaryEdge("attacker", "user1", "SMB", "Tree Connect"),
-    },
-    {
-      logMessage: "Attacker -> User: SMB Negotiate Protocol (SMB2)",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "user1", "SMB", "Negotiate"),
-    },
-    {
-      logMessage:
-        "LLMNR POISONING SUCCESSFUL: Attacker captured NTLM hash. Can now authenticate as the compromised user, access their resources, and potentially escalate privileges.",
-      logType: "success",
-    },
-  ];
-
-  const attackLDAPReconScenario = [
-    {
-      scenarioName: "Attack: LDAP Recon",
-      logMessage: "Attacker performs LDAP reconnaissance",
-      logType: "attack",
-      action: () => highlightElement("attacker"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Get domain naming context)",
+      logMessage: "Attacker -> DC01: LDAP Search (Find Privileged Groups - e.g., '(adminCount=1)')",
       logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Get Naming Context"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Find Admins"),
+    },
+    {
+      logMessage: "Attacker -> DC01: LDAP Search (Find Service Principal Names - e.g., '(servicePrincipalName=*)')",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Find SPNs"),
+    },
+    {
+      logMessage: "Attacker -> DC01: LDAP Search (Identify Group Memberships)",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Group Members"),
+    },
+    {
+      logMessage: "Attacker -> DC01: LDAP Unbind",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Unbind"),
     },
     {
       logMessage:
-        "Attacker -> DC01: LDAP Search (Enumerate OUs and containers)",
-      logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Enum OUs"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Find privileged groups)",
-      logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Find Groups"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Find service accounts)",
-      logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Find Services"),
-    },
-    {
-      logMessage:
-        "LDAP RECON COMPLETE: Attacker mapped AD structure. Can now identify high-value targets, misconfigurations, and potential attack paths for lateral movement.",
+        "LDAP RECON COMPLETE: Attacker gathered extensive information about users, computers, groups, SPNs, and AD structure. This data is crucial for identifying targets and planning further attacks.",
       logType: "success",
     },
   ];
 
   const attackDNSReconScenario = [
     {
-      scenarioName: "Attack: DNS Recon",
-      logMessage: "Attacker performs DNS reconnaissance",
+      scenarioName: "Attack: DNS Reconnaissance",
+      logMessage: "Attacker targets the Domain DNS Server (often DC01)",
       logType: "attack",
-      action: () => highlightElement("attacker"),
+      action: () => {
+        highlightElement("attacker");
+        highlightElement("dc01"); // Assuming DC01 is the DNS server
+      },
     },
     {
-      logMessage: "Attacker -> DC01: DNS Query (Get domain controllers)",
+      logMessage: "Attacker -> DC01 (DNS): Query SRV Records for Domain Controllers (_ldap._tcp.dc._msdcs.<domain>)",
       logType: "dns",
-      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "Get DCs"),
+      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "SRV Query (DCs)"),
     },
     {
-      logMessage: "Attacker -> DC01: DNS Query (Get all domain records)",
+      logMessage: "Attacker -> DC01 (DNS): Query SRV Records for Global Catalog (_gc._tcp.<domain>)",
       logType: "dns",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "DNS", "Zone Transfer"),
+      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "SRV Query (GCs)"),
     },
     {
-      logMessage: "Attacker -> DC01: DNS Query (Find SPN records)",
+      logMessage: "Attacker -> DC01 (DNS): Query A Records for specific hosts (e.g., SRV-FILES01)",
       logType: "dns",
-      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "Find SPNs"),
+      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "A Query (Host)"),
+    },
+    {
+      logMessage: "Attacker -> DC01 (DNS): Attempt Zone Transfer (AXFR Request for <domain>)",
+      logType: "dns",
+      action: () => addTemporaryEdge("attacker", "dc01", "DNS", "AXFR Attempt"),
+    },
+    {
+      logMessage: "DC01 (DNS) -> Attacker: Zone Transfer Response (Success or Failure - often restricted)",
+      logType: "dns",
+      action: () => addTemporaryEdge("dc01", "attacker", "DNS", "AXFR Response"),
     },
     {
       logMessage:
-        "DNS RECON COMPLETE: Attacker mapped network. Can now identify domain controllers, SPN records, and potential attack targets.",
+        "DNS RECON COMPLETE: Attacker identified key infrastructure servers (DCs, GCs) and potentially other hosts via DNS lookups. A successful Zone Transfer (if allowed) would provide a comprehensive list of domain DNS records.",
       logType: "success",
     },
   ];
@@ -2588,167 +2574,183 @@ document.addEventListener("DOMContentLoaded", function () {
   const attackSMBShareEnumScenario = [
     {
       scenarioName: "Attack: SMB Share Enumeration",
-      logMessage: "Attacker enumerates SMB shares",
+      logMessage: "Attacker (authenticated user) targets a server (SRV-FILES01) for share enumeration",
       logType: "attack",
-      action: () => highlightElement("attacker"),
+      action: () => {
+        highlightElement("attacker");
+        highlightElement("srv_files01");
+      },
     },
     {
-      logMessage: "Attacker -> SRV-FILES01: SMB Session Setup",
+      logMessage: "Attacker -> SRV-FILES01: SMB Negotiate Protocol Request",
       logType: "smb",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "SMB", "Session Setup"),
+      action: () => addTemporaryEdge("attacker", "srv_files01", "SMB", "Negotiate"),
     },
     {
-      logMessage: "Attacker -> SRV-FILES01: SMB Tree Connect (List shares)",
+      logMessage: "Attacker -> SRV-FILES01: SMB Session Setup Request (Authenticate user)",
+      logType: "smb", // Contains NTLM or Kerberos auth data
+      action: () => addTemporaryEdge("attacker", "srv_files01", "SMB", "Session Setup"),
+    },
+    {
+      logMessage: "SRV-FILES01 -> Attacker: SMB Session Setup Response (Success/Failure)",
       logType: "smb",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "SMB", "List Shares"),
+      action: () => addTemporaryEdge("srv_files01", "attacker", "SMB", "Session Response"),
+    },
+    {
+      logMessage: "Attacker -> SRV-FILES01: RPC Call over SMB (Connect to srvsvc pipe for NetShareEnumAll)",
+      logType: "rpc_smb", // RPC over named pipe
+      action: () => addTemporaryEdge("attacker", "srv_files01", "RPC/SMB", "Connect srvsvc"),
+    },
+    {
+      logMessage: "Attacker -> SRV-FILES01: RPC Call (NetShareEnumAll Request)",
+      logType: "rpc_smb",
+      action: () => addTemporaryEdge("attacker", "srv_files01", "RPC/SMB", "NetShareEnumAll"),
+    },
+    {
+      logMessage: "SRV-FILES01 -> Attacker: RPC Response (List of shares and comments)",
+      logType: "rpc_smb",
+      action: () => addTemporaryEdge("srv_files01", "attacker", "RPC/SMB", "Share List"),
+    },
+    {
+      logMessage: "Attacker -> SRV-FILES01: SMB Tree Connect Request (Access discovered share e.g., \\\\SRV-FILES01\\SHARE)",
+      logType: "smb",
+      action: () => addTemporaryEdge("attacker", "srv_files01", "SMB", "Tree Connect (Share)"),
+    },
+    {
+      logMessage: "SRV-FILES01 -> Attacker: SMB Tree Connect Response (Access Granted/Denied)",
+      logType: "smb",
+      action: () => addTemporaryEdge("srv_files01", "attacker", "SMB", "Tree Connect Resp."),
     },
     {
       logMessage:
-        "Attacker -> SRV-FILES01: SMB File Access (Check permissions)",
-      logType: "smb",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_files01", "SMB", "Check Access"),
-    },
-    {
-      logMessage:
-        "SMB ENUM COMPLETE: Attacker found accessible shares. Can now access sensitive data, potentially execute code, and use this as a foothold for lateral movement.",
+        "SMB SHARE ENUM COMPLETE: Attacker listed available SMB shares on the target server. May have identified shares with sensitive data or world-readable/writable permissions useful for lateral movement.",
       logType: "success",
     },
   ];
 
   const attackScheduledTaskScenario = [
     {
-      scenarioName: "Attack: Scheduled Task Abuse",
-      logMessage: "Attacker has compromised user1's credentials",
+      scenarioName: "Attack: Remote Scheduled Task (Persistence/Lateral Movement)",
+      logMessage: "Attacker (with user1 creds - requiring Admin on target) targets SRV-WEB-01",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
-        highlightElement("user1");
+        highlightElement("srv_web01"); // Target server
       },
     },
     {
-      logMessage: "Attacker -> SRV-WEB-01: SMB Authentication",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "srv_web01", "SMB", "Auth"),
+      logMessage: "Attacker -> SRV-WEB-01: Authenticate (e.g., SMB/RPC) using user1 credentials",
+      logType: "auth", // SMB/RPC auth happens implicitly or explicitly before RPC calls
+      action: () => addTemporaryEdge("attacker", "srv_web01", "Auth", "User1 Login"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Connect to Task Scheduler service)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Connect to Task Scheduler service - ATSVC pipe)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge(
-          "attacker",
-          "srv_web01",
-          "RPC",
-          "TaskScheduler Connect"
-        ),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "TaskSched Connect"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Create scheduled task with SYSTEM privileges)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (SchRpcRegisterTask - Define Task XML/Properties)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Create Task"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "Register Task"),
+      // This single call usually includes action, trigger, security context (e.g., SYSTEM), etc.
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Set task trigger - daily at 2 AM)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Set Task Action - e.g., C:\\Windows\\Temp\\payload.exe)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Trigger"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Action"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Set task action - execute malicious payload)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Set Task Trigger - e.g., Logon)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Action"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Trigger"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Set task security options - run as SYSTEM)",
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Set Task Principal - e.g., Run as SYSTEM)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Security"),
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Principal"),
     },
     {
-      logMessage: "SRV-WEB-01: Task created successfully",
-      logType: "success",
+      logMessage: "SRV-WEB-01: Task Scheduler Service creates the task as defined",
+      logType: "internal",
       action: () => highlightElement("srv_web01"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Trigger task immediately for testing)",
+      logMessage: "SRV-WEB-01 -> Attacker: RPC Response (Task Creation Success)",
       logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Run Task"),
+      action: () => addTemporaryEdge("srv_web01", "attacker", "RPC", "Task Created"),
+    },
+    {
+      logMessage: "Attacker -> SRV-WEB-01: RPC Call (SchRpcRun - Trigger task execution now)",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "RPC", "Run Task Now"),
+    },
+    {
+      logMessage: "SRV-WEB-01: Task runs with specified privileges (e.g., SYSTEM), executes payload",
+      logType: "execution",
+      action: () => highlightElement("srv_web01"), // Payload runs on target
     },
     {
       logMessage:
-        "SCHEDULED TASK SUCCESSFUL: Attacker can execute code. Can now run arbitrary code on the target system, maintain persistence, and potentially escalate privileges.",
+        "REMOTE SCHEDULED TASK SUCCESSFUL: Attacker created a scheduled task on the target system for persistence or immediate code execution, often running as SYSTEM.",
       logType: "success",
     },
   ];
 
   const attackWMIAbuseScenario = [
     {
-      scenarioName: "Attack: WMI Abuse",
-      logMessage: "Attacker has compromised user1's credentials",
+      scenarioName: "Attack: WMI Event Subscription (Persistence/Lateral Movement)",
+      logMessage: "Attacker (with user1 creds - requiring Admin on target) targets SRV-WEB-01 via WMI",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
-        highlightElement("user1");
+        highlightElement("srv_web01");
       },
     },
     {
-      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Connect to WMI)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "WMI Connect"),
+      logMessage: "Attacker -> SRV-WEB-01: DCOM/RPC Connection (Connect to WMI Service - Port 135 + Dynamic)",
+      logType: "dcom_rpc", // WMI uses DCOM over RPC
+      action: () => addTemporaryEdge("attacker", "srv_web01", "DCOM/RPC", "WMI Connect"),
     },
     {
-      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Create WMI event filter)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Create Filter"),
+      logMessage: "Attacker -> SRV-WEB-01: WMI Call (Authenticate using user1 credentials)",
+      logType: "wmi",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "WMI", "Authenticate"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Create WMI event consumer)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Create Consumer"),
+      logMessage: "Attacker -> SRV-WEB-01: WMI Call (Create __EventFilter instance - trigger condition)",
+      logType: "wmi",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "WMI", "Create Filter"),
+      // Example Filter: Trigger after 5 mins: SELECT * FROM __InstanceModificationEvent WITHIN 300 WHERE TargetInstance ISA 'Win32_PerfFormattedData_PerfOS_System' AND TargetInstance.SystemUpTime >= 300
     },
     {
-      logMessage: "Attacker -> SRV-WEB-01: RPC Call (Bind filter to consumer)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Bind Filter"),
+      logMessage: "Attacker -> SRV-WEB-01: WMI Call (Create Event Consumer instance - action to take)",
+      logType: "wmi",
+      // Example Consumer: CommandLineEventConsumer to run payload.exe
+      action: () => addTemporaryEdge("attacker", "srv_web01", "WMI", "Create Consumer (Payload)"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Set consumer to execute malicious payload)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Set Payload"),
+      logMessage: "Attacker -> SRV-WEB-01: WMI Call (Create __FilterToConsumerBinding instance - link filter and consumer)",
+      logType: "wmi",
+      action: () => addTemporaryEdge("attacker", "srv_web01", "WMI", "Bind Filter/Consumer"),
     },
     {
-      logMessage:
-        "Attacker -> SRV-WEB-01: RPC Call (Trigger event to test persistence)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "srv_web01", "RPC", "Trigger Event"),
-    },
-    {
-      logMessage: "SRV-WEB-01: WMI persistence established",
-      logType: "success",
+      logMessage: "SRV-WEB-01: WMI service stores the event subscription components",
+      logType: "internal",
       action: () => highlightElement("srv_web01"),
     },
     {
+      logMessage: "SRV-WEB-01: WMI event filter condition met (e.g., system uptime reaches threshold)",
+      logType: "wmi_event",
+      action: () => highlightElement("srv_web01"), // Event occurs on target
+    },
+    {
+      logMessage: "SRV-WEB-01: WMI executes the bound consumer action (runs payload.exe)",
+      logType: "execution",
+      action: () => highlightElement("srv_web01"), // Payload runs on target
+    },
+    {
       logMessage:
-        "WMI ABUSE SUCCESSFUL: Attacker has persistence. Can now execute arbitrary code on the target system, maintain persistence through WMI events, and potentially escalate privileges.",
+        "WMI EVENT SUBSCRIPTION SUCCESSFUL: Attacker established persistence via WMI. The malicious payload will execute whenever the defined event filter condition is met on the target system.",
       logType: "success",
     },
   ];
@@ -3158,8 +3160,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const attackSkeletonKeyScenario = [
     {
-      scenarioName: "Attack: Skeleton Key",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: Skeleton Key (Persistence)",
+      logMessage: "Attacker (with DA privileges) targets DC01 LSASS process",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -3167,62 +3169,73 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Attacker -> DC01: RPC Bind (Connect to LSASS service)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "LSASS Bind"),
+      logMessage: "Attacker -> DC01: Gain handle to LSASS process",
+      logType: "os_action", // Or custom type
+      action: () => highlightElement("dc01"), // Action occurs on DC
     },
     {
-      logMessage:
-        "Attacker -> DC01: RPC Call (Inject Skeleton Key DLL into LSASS)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Inject DLL"),
+      logMessage: "Attacker -> DC01: Allocate memory within LSASS",
+      logType: "os_action",
+      action: () => highlightElement("dc01"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: RPC Call (Hook password validation routine)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "RPC", "Hook Validation"),
+      logMessage: "Attacker -> DC01: Write Skeleton Key payload (DLL/shellcode) into LSASS memory",
+      logType: "os_action",
+      action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: RPC Call (Set Skeleton Key password)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Set Key"),
+      logMessage: "Attacker -> DC01: Execute payload within LSASS (e.g., CreateRemoteThread)",
+      logType: "os_action", // This triggers the hooking and setting of the key
+      action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: RPC Bind (Connect to Netlogon service)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "RPC", "Netlogon Bind"),
+      logMessage: "DC01 (LSASS): Skeleton Key payload hooks authentication function",
+      logType: "internal", // Action within DC process
+      action: () => highlightElement("dc01"),
     },
     {
-      logMessage:
-        "Attacker -> DC01: NetrLogonSamLogon (Test Skeleton Key authentication)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Test Auth"),
+      logMessage: "DC01 (LSASS): Skeleton Key payload sets master password",
+      logType: "internal",
+      action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: LDAP Bind (Using Skeleton Key password)",
+      logMessage: "Attacker -> DC01: Attempt Kerberos/NTLM Authentication (Any User, Skeleton Key Password)",
+      logType: "kerberos/ntlm", // Can use either
+      action: () => addTemporaryEdge("attacker", "dc01", "Auth", "Test Skeleton Key"),
+    },
+    {
+      logMessage: "DC01 (LSASS): Hooked function bypasses normal check, validates Skeleton Key password",
+      logType: "internal",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage: "DC01 -> Attacker: Authentication Success (using Skeleton Key)",
+      logType: "kerberos/ntlm",
+      action: () => addTemporaryEdge("dc01", "attacker", "Auth", "Success"),
+    },
+    // Post-Exploitation Example
+    {
+      logMessage: "Attacker -> DC01: Access resources using Skeleton Key (e.g., LDAP Bind)",
       logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Bind"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Enumerate domain objects)",
-      logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Enum Objects"),
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Bind (Skeleton Key)"),
     },
     {
       logMessage:
-        "DSRM ABUSE SUCCESSFUL: Attacker has domain admin access. Can now authenticate as any user with the skeleton key password, access all domain resources, and maintain persistence.",
+        "SKELETON KEY SUCCESSFUL: Attacker injected backdoor into LSASS. Can now authenticate as *any* domain user using the single Skeleton Key password, bypassing original credentials.",
       logType: "success",
     },
   ];
 
   const attackPetitPotamScenario = [
     {
+      scenarioName: "Attack: PetitPotam (NTLM Relay Trigger)",
+      logMessage: "Attacker prepares NTLM Relay listener targeting e.g., ADCS", // Added step
+      logType: "setup",
+      action: () => highlightElement("attacker"), // Optionally highlight relay target too
+    },
+    {
       scenarioName: "Attack: PetitPotam",
-      logMessage: "Attacker targets DC01",
+      logMessage: "Attacker targets DC01's EFS service",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -3230,41 +3243,67 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Attacker -> DC01: MS-EFSRPC Call (Trigger authentication)",
+      logMessage: "Attacker -> DC01: MS-EFSRPC EfsRpcOpenFileRaw (Trigger Auth to Attacker Machine)",
       logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "MS-EFSRPC"),
+      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "EfsRpcOpenFileRaw"),
     },
     {
-      logMessage: "DC01: Validates RPC call (Checks EFS service)",
+      logMessage: "DC01: Processes EFS RPC call, attempts auth to Attacker's specified path",
       logType: "rpc",
       action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "DC01 -> Attacker: NTLM Challenge",
+      logMessage: "DC01 -> Attacker: NTLM Authentication Request (Negotiate)", // DC initiates auth TO attacker
       logType: "ntlm",
-      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "Challenge"),
+      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "Negotiate"),
     },
     {
-      logMessage: "Attacker -> DC01: NTLM Response",
+      logMessage: "Attacker (Relay): Receives NTLM Negotiate from DC01",
       logType: "ntlm",
-      action: () => addTemporaryEdge("attacker", "dc01", "NTLM", "Response"),
+      action: () => highlightElement("attacker"),
+    },
+    // Relay part begins (Simplified - actual relay involves multiple back-and-forth)
+    {
+      logMessage: "Attacker (Relay) -> Target Service (e.g., ADCS): Relays NTLM Negotiate",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("attacker", "ca01", "NTLM", "Relay Neg."), // Assuming ca01 node exists
     },
     {
-      logMessage: "DC01: Validates NTLM authentication",
+      logMessage: "Target Service -> Attacker (Relay): NTLM Challenge",
       logType: "ntlm",
-      action: () => highlightElement("dc01"),
+      action: () => addTemporaryEdge("ca01", "attacker", "NTLM", "Challenge"),
+    },
+    {
+      logMessage: "Attacker (Relay) -> DC01: Forwards NTLM Challenge",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("attacker", "dc01", "NTLM", "Challenge"),
+    },
+    {
+      logMessage: "DC01 -> Attacker (Relay): NTLM Authenticate (Response)",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "Authenticate"),
+    },
+    {
+      logMessage: "Attacker (Relay) -> Target Service: Relays NTLM Authenticate",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("attacker", "ca01", "NTLM", "Relay Auth."),
+    },
+    {
+      logMessage: "Target Service: Grants access/issues certificate based on relayed DC01 credentials",
+      logType: "result",
+      action: () => highlightElement("ca01"), // Highlight the compromised service
     },
     {
       logMessage:
-        "PETITPOTAM SUCCESSFUL: Attacker triggered DC authentication. Can now capture DC credentials, potentially gain domain admin access, and maintain persistence.",
+        "PETITPOTAM RELAY SUCCESSFUL: Attacker coerced DC authentication and relayed it. May have obtained DC certificate (via ADCS) or authenticated to another service as the DC, potentially leading to DA.",
       logType: "success",
     },
   ];
 
   const attackZeroLogonScenario = [
     {
-      scenarioName: "Attack: ZeroLogon",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: ZeroLogon (CVE-2020-1472)",
+      logMessage: "Attacker targets DC01 Netlogon service",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -3272,42 +3311,58 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Attacker -> DC01: NetrServerPasswordSet2 RPC Call",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "PasswordSet2"),
+      logMessage: "Attacker -> DC01: Repeatedly send crafted NetrServerAuthenticate3 calls (Exploiting AES-CFB8 flaw)",
+      logType: "rpc", // MS-NRPC
+      action: () => addTemporaryEdge("attacker", "dc01", "MS-NRPC", "Auth Bypass Attempt"),
     },
     {
-      logMessage: "DC01: Validates RPC call (Checks Netlogon service)",
+      logMessage: "DC01: Processes Netlogon calls, vulnerable validation allows bypass",
       logType: "rpc",
       action: () => highlightElement("dc01"),
     },
+    // Assuming bypass succeeded after several attempts...
     {
-      logMessage: "DC01: Processes password reset (Vulnerable to ZeroLogon)",
+      logMessage: "Attacker -> DC01: NetrServerPasswordSet2 RPC Call (Set DC password to empty string)",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "dc01", "MS-NRPC", "SetEmptyPassword"),
+    },
+    {
+      logMessage: "DC01: Successfully resets its machine account password to empty (vulnerability exploited)",
       logType: "rpc",
       action: () => highlightElement("dc01"),
+    },
+    // Post-Exploitation
+    {
+      logMessage: "Attacker -> DC01: Authenticate as DC$ using empty password (e.g., via SMB, RPC)",
+      logType: "auth", // Could be NTLM or Kerberos depending on tool
+      action: () => addTemporaryEdge("attacker", "dc01", "Auth", "DC$ Login (Empty Pass)"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Perform DCSync (Dump all domain hashes using DC$ privileges)",
+      logType: "drsuapi", // Directory Replication Service Remote Protocol
+      action: () => addTemporaryEdge("attacker", "dc01", "DRSUAPI", "DCSync"),
+    },
+    {
+      logMessage: "Attacker: Obtains NTLM hashes (e.g., krbtgt, Domain Admins)",
+      logType: "result",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Restore original DC$ password hash (using dumped hash)", // CRITICAL step to avoid breaking domain
+      logType: "rpc", // Likely requires authenticated session as DC$
+      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Restore Password"),
     },
     {
       logMessage:
-        "Attacker -> DC01: NetrServerPasswordSet2 (Set empty password)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "SetEmpty"),
-    },
-    {
-      logMessage: "DC01: Updates DC password (Due to vulnerability)",
-      logType: "rpc",
-      action: () => highlightElement("dc01"),
-    },
-    {
-      logMessage:
-        "ZEROLOGON SUCCESSFUL: Attacker reset DC password. Can now authenticate as the domain controller, access all domain resources, and maintain persistence.",
+        "ZEROLOGON SUCCESSFUL: Attacker reset DC password, authenticated as DC, dumped domain hashes (DCSync), and restored password. Effectively achieved Domain Admin.",
       logType: "success",
     },
   ];
 
   const attackMS14068Scenario = [
     {
-      scenarioName: "Attack: MS14-068",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: MS14-068 (Kerberos PAC Vulnerability)",
+      logMessage: "Attacker (with low-priv user creds) targets KDC on DC01",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -3315,131 +3370,163 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Attacker -> DC01: Kerberos AS-REQ (Request TGT)",
+      logMessage: "Attacker -> DC01: Kerberos AS-REQ (Request TGT for low-priv user)",
       logType: "kerberos",
       action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ"),
     },
     {
-      logMessage: "DC01: Validates AS-REQ (Checks user credentials)",
+      logMessage: "DC01: Validates user credentials",
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: Kerberos TGS-REQ (Exploit PAC validation)",
+      logMessage: "DC01 -> Attacker: Kerberos AS-REP (Issue TGT for low-priv user)", // Added step
       logType: "kerberos",
-      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ"),
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (TGT)"),
     },
     {
-      logMessage: "DC01: Processes TGS-REQ (Vulnerable to PAC bypass)",
+      logMessage: "Attacker: Crafts TGS-REQ with a forged PAC (Privilege Attribute Certificate)", // Clarified
+      logType: "kerberos",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Kerberos TGS-REQ (Request Service Ticket, includes forged PAC signed with user key)",
+      logType: "kerberos",
+      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (Forged PAC)"),
+    },
+    {
+      logMessage: "DC01 (KDC): Processes TGS-REQ, FAILS to properly validate PAC signature (MS14-068 vulnerability)", // Clarified
       logType: "kerberos",
       action: () => highlightElement("dc01"),
     },
     {
-      logMessage:
-        "DC01 -> Attacker: Kerberos TGS-REP (With elevated privileges)",
+      logMessage: "DC01 (KDC) -> Attacker: Kerberos TGS-REP (Issues Service Ticket based on FORGED PAC privileges)",
       logType: "kerberos",
-      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP"),
+      action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "TGS-REP (Elevated)"),
+    },
+    // Post-Exploitation Example
+    {
+      logMessage: "Attacker: Uses the elevated Service Ticket to access a target service (e.g., CIFS on DC01)", // Added usage step
+      logType: "kerberos", // Or SMB/CIFS etc. depending on service
+      action: () => addTemporaryEdge("attacker", "dc01", "Kerberos/SMB", "Access with Forged Ticket"),
     },
     {
       logMessage:
-        "MS14-068 SUCCESSFUL: Attacker obtained Domain Admin privileges. Can now access all domain resources, create new users, and maintain persistence.",
+        "MS14-068 SUCCESSFUL: Attacker exploited KDC validation flaw to obtain Kerberos tickets with elevated (likely Domain Admin) privileges using only low-privilege user credentials.",
       logType: "success",
     },
   ];
 
   const attackSAMRAbuseScenario = [
     {
-      scenarioName: "Attack: SAMR Abuse",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: SAMR Abuse (Enumeration)",
+      logMessage: "Attacker (authenticated user) targets DC01 SAMR service",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
         highlightElement("dc01");
       },
     },
+    // Assumes prior SMB/RPC authentication succeeded
     {
-      logMessage: "Attacker -> DC01: SAMR Connect",
+      logMessage: "Attacker -> DC01: RPC Bind (Connect to SAMR pipe)",
       logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "SAMR Connect"),
+      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "SAMR Bind"),
     },
     {
-      logMessage: "DC01: Validates SAMR connection",
+      logMessage: "Attacker -> DC01: SAMR Call (e.g., SamrConnect, SamrOpenDomain)",
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "dc01", "SAMR", "Connect/OpenDomain"),
+    },
+    {
+      logMessage: "DC01: Validates SAMR connection request",
       logType: "rpc",
       action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: SAMR EnumUsers",
+      logMessage: "Attacker -> DC01: SAMR Call (SamrEnumerateUsersInDomain)",
       logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "EnumUsers"),
+      action: () => addTemporaryEdge("attacker", "dc01", "SAMR", "EnumUsers"),
     },
     {
-      logMessage: "DC01: Processes user enumeration",
+      logMessage: "DC01: Processes request, returns list of domain user RIDs/names",
       logType: "rpc",
-      action: () => highlightElement("dc01"),
+      action: () => addTemporaryEdge("dc01", "attacker", "SAMR", "User List"),
     },
     {
-      logMessage: "Attacker -> DC01: SAMR DumpHashes",
+      logMessage: "Attacker -> DC01: SAMR Call (SamrEnumerateGroupsInDomain)", // Example: Enum Groups
       logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "DumpHashes"),
+      action: () => addTemporaryEdge("attacker", "dc01", "SAMR", "EnumGroups"),
     },
     {
-      logMessage: "DC01: Extracts password hashes",
+      logMessage: "DC01: Processes request, returns list of domain group RIDs/names",
       logType: "rpc",
-      action: () => highlightElement("dc01"),
+      action: () => addTemporaryEdge("dc01", "attacker", "SAMR", "Group List"),
+    },
+    {
+      logMessage: "Attacker -> DC01: SAMR Call (SamrCloseHandle)", // Disconnect
+      logType: "rpc",
+      action: () => addTemporaryEdge("attacker", "dc01", "SAMR", "Close"),
     },
     {
       logMessage:
-        "SAMR ABUSE SUCCESSFUL: Attacker dumped password hashes. Can now authenticate as any user whose hash was dumped, access their resources, and potentially escalate privileges.",
+        "SAMR ABUSE SUCCESSFUL: Attacker successfully enumerated domain objects (users, groups) via SAMR protocol. Provides valuable reconnaissance information for further attacks.",
       logType: "success",
     },
   ];
 
   const attackNTDSExtractionScenario = [
     {
-      scenarioName: "Attack: NTDS.dit Extraction",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: NTDS.dit Extraction (via VSS)",
+      logMessage: "Attacker (DA/Backup privs) targets DC01",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
         highlightElement("dc01");
       },
     },
+    // Assumes attacker has remote command execution (e.g., WinRM, PsExec) or SMB access
     {
-      logMessage: "Attacker -> DC01: SMB Authentication",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Auth"),
-    },
-    {
-      logMessage: "Attacker -> DC01: Copy NTDS.dit",
-      logType: "smb",
-      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Copy NTDS"),
-    },
-    {
-      logMessage: "DC01: Processes file copy request",
-      logType: "smb",
+      logMessage: "Attacker -> DC01: Execute command to Create Volume Shadow Copy",
+      logType: "os_action", // e.g., vssadmin create shadow /for=C:
       action: () => highlightElement("dc01"),
     },
     {
-      logMessage: "Attacker -> DC01: Copy SYSTEM hive",
-      logType: "smb",
+      logMessage: "DC01: Creates Shadow Copy of the system volume",
+      logType: "os_action",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Copy NTDS.dit from Shadow Copy path (via SMB/CMD)",
+      logType: "smb/os_action",
+      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Copy NTDS.dit"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Copy SYSTEM hive from Shadow Copy path (via SMB/CMD)",
+      logType: "smb/os_action",
       action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Copy SYSTEM"),
     },
     {
-      logMessage: "DC01: Processes SYSTEM hive copy",
-      logType: "smb",
+      logMessage: "Attacker -> DC01: Execute command to Delete Volume Shadow Copy", // Cleanup
+      logType: "os_action",
       action: () => highlightElement("dc01"),
     },
     {
+      logMessage: "Attacker (Offline): Use SYSTEM hive to decrypt hashes within NTDS.dit", // Offline step
+      logType: "offline_action",
+      action: () => highlightElement("attacker"), // Action on attacker machine
+    },
+    {
       logMessage:
-        "NTDS.dit EXTRACTION SUCCESSFUL: Attacker obtained AD database. Can now extract all user hashes, authenticate as any user, access all resources, and maintain persistence.",
+        "NTDS.dit EXTRACTION SUCCESSFUL: Attacker obtained copy of AD database (NTDS.dit) and SYSTEM hive. Can now extract all domain password hashes offline for cracking or pass-the-hash.",
       logType: "success",
     },
   ];
 
   const attackDSRMAbuseScenario = [
     {
-      scenarioName: "Attack: DSRM Abuse",
-      logMessage: "Attacker targets DC01",
+      scenarioName: "Attack: DSRM Abuse (Persistence Logon)",
+      logMessage: "Attacker targets DC01 (previously configured for DSRM network logon)",
       logType: "attack",
       action: () => {
         highlightElement("attacker");
@@ -3447,34 +3534,396 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
     {
-      logMessage: "Attacker -> DC01: RPC Bind (Connect to Netlogon service)",
-      logType: "rpc",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "RPC", "Netlogon Bind"),
+      logMessage: "Attacker -> DC01: NTLM Authentication Request (User: .\\Administrator, Pass: DSRM_Password)",
+      logType: "ntlm", // Target e.g., WinRM or SMB service
+      action: () => addTemporaryEdge("attacker", "dc01", "NTLM", "DSRM Auth Req"),
+    },
+    {
+      logMessage: "DC01: Validates credentials against local SAM DSRM account (Allowed due to DsrmAdminLogonBehavior=2)",
+      logType: "ntlm",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage: "DC01 -> Attacker: NTLM Authentication Success",
+      logType: "ntlm",
+      action: () => addTemporaryEdge("dc01", "attacker", "NTLM", "DSRM Auth Success"),
+    },
+    {
+      logMessage: "Attacker -> DC01: Establish Remote Session (e.g., WinRM, PsExec using DSRM creds)",
+      logType: "winrm/smb",
+      action: () => addTemporaryEdge("attacker", "dc01", "Session", "Remote Access (DSRM)"),
+    },
+    {
+      logMessage: "Attacker (via remote session): Execute commands with local Administrator privileges on DC01",
+      logType: "os_action",
+      action: () => highlightElement("dc01"), // Running commands on DC
+    },
+    {
+      logMessage: "Attacker: Can now perform DA-level actions (e.g., DCSync, modify domain)",
+      logType: "result",
+      action: () => highlightElement("attacker"),
     },
     {
       logMessage:
-        "Attacker -> DC01: NetrLogonSamLogon (Test DSRM authentication)",
-      logType: "rpc",
-      action: () => addTemporaryEdge("attacker", "dc01", "RPC", "Test Auth"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Bind (Using DSRM password)",
-      logType: "ldap",
-      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Bind"),
-    },
-    {
-      logMessage: "Attacker -> DC01: LDAP Search (Enumerate domain objects)",
-      logType: "ldap",
-      action: () =>
-        addTemporaryEdge("attacker", "dc01", "LDAP", "Enum Objects"),
-    },
-    {
-      logMessage:
-        "DSRM ABUSE SUCCESSFUL: Attacker has domain admin access. Can now access all domain resources as Domain Admin, create new users, and maintain persistence even if DSRM password is changed.",
+        "DSRM ABUSE (PERSISTENCE) SUCCESSFUL: Attacker regained privileged access to the DC using the DSRM account via network logon, bypassing standard domain authentication.",
       logType: "success",
     },
   ];
+
+  const attackGPOAbuseScenario = [
+    {
+      scenarioName: "Attack: Malicious GPO Modification",
+      logMessage:
+        "Attacker Goal: Achieve code execution or persistence on multiple machines by modifying a Group Policy Object.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has compromised credentials with permissions to edit a specific GPO (e.g., member of 'Group Policy Creator Owners' or direct ACL). Assume compromised 'gpo_editor' user.",
+      logType: "attack",
+      action: () => {
+        highlightElement("gpo_editor", stepDelay, "compromised");
+        highlightElement("dc01"); // GPOs are stored/managed via DC
+      },
+    },
+    {
+      logMessage:
+        "Attacker (as gpo_editor) -> DC01: SMB Connection (Accessing SYSVOL share where GPO files are stored, e.g., \\\\dc01\\SYSVOL\\...).",
+      logType: "smb",
+      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Connect SYSVOL"),
+    },
+    {
+      logMessage:
+        "Attacker (as gpo_editor) -> DC01: Modify GPO Files (e.g., Adds malicious startup script, scheduled task XML, or modifies registry settings within the GPO files on SYSVOL).",
+      logType: "attack", // Modifying policy files
+      action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Modify GPO Files"),
+    },
+    {
+      logMessage:
+        "Attacker (as gpo_editor) -> DC01: LDAP Modify (Updates GPO version number in AD object to trigger client refresh).",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Update GPO Version"),
+    },
+    {
+      logMessage:
+        "Victim Machine (host1 - linked to GPO): Periodically checks for GPO updates.",
+      logType: "info",
+      action: () => highlightElement("host1"),
+    },
+    {
+      logMessage:
+        "Victim Machine (host1) -> DC01: SMB/LDAP Request (Detects GPO version change, fetches updated policy files from SYSVOL/AD).",
+      logType: "smb", // Or LDAP depending on setting type
+      action: () => addTemporaryEdge("host1", "dc01", "SMB/LDAP", "Fetch GPO Update"),
+    },
+    {
+      logMessage:
+        "Victim Machine (host1): Applies the malicious GPO settings (e.g., runs the attacker's script at next startup/logon, creates malicious scheduled task).",
+      logType: "system", // Local action triggered by GPO
+      action: () => highlightElement("host1", stepDelay, "compromised"), // Host executes attacker's payload
+    },
+    {
+      logMessage:
+        "IMPACT: Attacker leveraged GPO edit rights to gain code execution or persistence on potentially many machines linked to the GPO, often with SYSTEM privileges.",
+      logType: "success",
+    },
+  ];
+
+
+  const attackKCDAbuseScenario = [
+    {
+      scenarioName: "Attack: Constrained Delegation (KCD) Abuse",
+      logMessage:
+        "Attacker Goal: Impersonate a user on a backend service (Service B) by compromising a frontend service (Service A) configured for KCD.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite 1: Attacker compromises Server A (srv_app01), which runs a service configured for Kerberos Constrained Delegation (KCD) to Service B (e.g., cifs/srv_files01). Service A's account ('svc_app01') has 'msDS-AllowedToDelegateTo' set for Service B.",
+      logType: "attack",
+      action: () => {
+        highlightElement("attacker");
+        highlightElement("srv_app01", stepDelay, "compromised"); // Frontend service compromised
+        highlightElement("svc_app01"); // Account running frontend service
+        highlightElement("srv_files01"); // Backend service target
+      },
+    },
+    {
+      logMessage:
+        "Prerequisite 2: Service A ('svc_app01') must be configured for 'Use any authentication protocol' (Transition). If not, a user must authenticate to Service A with Kerberos first.",
+      logType: "info",
+    },
+    {
+      logMessage:
+        "Attacker (on srv_app01, controlling svc_app01): Needs to trigger S4U process. Can either wait for a legitimate user (e.g., 'user1') to authenticate to Service A, OR force authentication (e.g., using RBCD against Service A, or other means). Assume attacker forces 'user1' authentication.",
+      logType: "attack", // Attacker manipulates the service
+      action: () => {
+        highlightElement("user1"); // The user to be impersonated
+      },
+    },
+    {
+      logMessage:
+        "Attacker (as svc_app01 on srv_app01) -> DC01: Kerberos TGS-REQ (S4U2Self - Requesting ST *to itself* for 'svc_app01', specifying impersonation of 'user1'). This step is needed if protocol transition is enabled.",
+      logType: "attack", // Service gets ticket to self as user
+      action: () =>
+        addTemporaryEdge("srv_app01", "dc01", "Kerberos", "TGS-REQ (S4U2Self as user1)"),
+    },
+    {
+      logMessage:
+        "DC01 -> Attacker (as svc_app01): Kerberos TGS-REP (Issues forwardable ST for 'svc_app01' containing 'user1' identity).",
+      logType: "kerberos",
+      action: () =>
+        addTemporaryEdge("dc01", "srv_app01", "Kerberos", "TGS-REP (Self ST as user1)"),
+    },
+    {
+      logMessage:
+        "Attacker (as svc_app01 on srv_app01) -> DC01: Kerberos TGS-REQ (S4U2Proxy - Uses the S4U2Self ticket [or user's original TGT if no transition], requests ST for the target service 'cifs/srv_files01' *as user1*).",
+      logType: "attack", // Service uses delegation rights
+      action: () =>
+        addTemporaryEdge("srv_app01", "dc01", "Kerberos", "TGS-REQ (S4U2Proxy to files01)"),
+    },
+    {
+      logMessage:
+        "DC01: Validates request. Checks KCD config: confirms 'svc_app01' is allowed to delegate to 'cifs/srv_files01'. Issues ST for 'cifs/srv_files01' usable by 'svc_app01' containing 'user1' identity.",
+      logType: "kerberos",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage:
+        "DC01 -> Attacker (as svc_app01): Kerberos TGS-REP (Sending ST for cifs/srv_files01, valid *as user1*).",
+      logType: "kerberos",
+      action: () =>
+        addTemporaryEdge("dc01", "srv_app01", "Kerberos", "TGS-REP (Proxy ST as user1)"),
+    },
+    {
+      logMessage:
+        "Attacker (on srv_app01, injects proxy ST): -> SRV-FILES01: Service Request (e.g., SMB AP-REQ to access files, presenting the proxy ST).",
+      logType: "attack", // Accessing backend service
+      action: () => {
+        highlightElement("srv_files01", stepDelay, "highlighted"); // Access achieved on backend
+        addTemporaryEdge("srv_app01", "srv_files01", "SMB", "AP-REQ (as user1 via KCD)");
+      },
+    },
+    {
+      logMessage:
+        "SRV-FILES01: Validates ticket. Sees user is 'user1'. Grants access based on user1's permissions.",
+      logType: "smb",
+    },
+    {
+      logMessage:
+        "IMPACT: Attacker compromised a frontend service (A) and abused its Kerberos Constrained Delegation rights to access a backend service (B) while impersonating another user ('user1').",
+      logType: "success",
+    },
+  ];
+
+
+  const attackLAPSAbuseScenario = [
+    {
+      scenarioName: "Attack: LAPS Password Retrieval & Abuse",
+      logMessage:
+        "Attacker Goal: Retrieve a target computer's Local Administrator password managed by LAPS via LDAP.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has compromised credentials (e.g., 'helpdesk_user') that have been granted READ access to the 'ms-Mcs-AdmPwd' attribute on target computer objects in AD.",
+      logType: "attack",
+      action: () => {
+        highlightElement("helpdesk_user", stepDelay, "compromised");
+        highlightElement("dc01");
+        highlightElement("host1"); // Target computer whose LAPS pwd we want
+      },
+    },
+    {
+      logMessage:
+        "Attacker (as helpdesk_user) -> DC01: LDAP Search Request (Querying the computer object 'host1' and specifically requesting the 'ms-Mcs-AdmPwd' attribute).",
+      logType: "ldap",
+      action: () =>
+        addTemporaryEdge("attacker", "dc01", "LDAP", "Query LAPS Pwd (host1)"),
+    },
+    {
+      logMessage:
+        "DC01: Receives query. Performs ACL check: confirms 'helpdesk_user' has read permission for 'ms-Mcs-AdmPwd' on 'host1' object.",
+      logType: "ldap",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage:
+        "DC01 -> Attacker: LDAP Search Result (Returns the value of 'ms-Mcs-AdmPwd' for host1 - the current Local Admin password).",
+      logType: "ldap", // Sensitive data disclosure
+      action: () => {
+        addTemporaryEdge("dc01", "attacker", "LDAP", "LAPS Pwd Response");
+        // Note: No specific element for the password itself, attacker now knows it.
+      }
+    },
+    {
+      logMessage:
+        "Attacker: Now possesses the Local Administrator password for 'host1'.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Attacker -> Host1: Remote Logon Attempt (e.g., SMB, WinRM, RDP) using '.\Administrator' and the retrieved LAPS password.",
+      logType: "attack", // Using the obtained credential
+      action: () =>
+        addTemporaryEdge("attacker", "host1", "SMB/WinRM", "Logon (LAPS Pwd)"),
+    },
+    {
+      logMessage:
+        "Host1: Authenticates the attacker as the local Administrator.",
+      logType: "success",
+      action: () => highlightElement("host1", stepDelay, "compromised"), // Host compromised
+    },
+    {
+      logMessage:
+        "IMPACT: Attacker leveraged legitimate (but perhaps excessive) read permissions to retrieve a local administrator password via LDAP, enabling direct administrative access to the target machine for lateral movement.",
+      logType: "success",
+    },
+  ];
+
+
+  const attackGMSAAbuseScenario = [
+    {
+      scenarioName: "Attack: gMSA Password Retrieval & Use",
+      logMessage:
+        "Attacker Goal: Retrieve the password hash for a Group Managed Service Account (gMSA) and use it.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has compromised credentials (e.g., 'priv_user') with privileges to read gMSA password data (Requires specific AD rights, often Domain Admin equivalent or delegated).",
+      logType: "attack",
+      action: () => {
+        highlightElement("priv_user", stepDelay, "compromised");
+        highlightElement("dc01");
+        highlightElement("gmsa_sql"); // Example gMSA account
+      },
+    },
+    {
+      logMessage:
+        "Attacker (as priv_user) -> DC01: LDAP Search (Querying the gMSA object 'gmsa_sql', requesting the 'msDS-ManagedPassword' attribute blob).",
+      logType: "ldap",
+      action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Query gMSA Pwd Blob"),
+    },
+    {
+      logMessage:
+        "DC01: Validates permissions. Returns the encrypted 'msDS-ManagedPassword' blob if authorized.",
+      logType: "ldap",
+      action: () => addTemporaryEdge("dc01", "attacker", "LDAP", "gMSA Blob Response"),
+    },
+    {
+      logMessage:
+        "Attacker: Uses tools (e.g., DSInternals, gMSADumper) OFFLINE with the necessary privileges/context to decrypt the blob and extract the NT hash for the current gMSA password.",
+      logType: "attack", // Offline processing
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Attacker: Now possesses the NTLM hash for the 'gmsa_sql' account.",
+      logType: "attack",
+      action: () => highlightElement("gmsa_sql", stepDelay, "compromised"),
+    },
+    {
+      logMessage:
+        "Attacker -> Target Service Host (e.g., srv_sql01): Pass-the-Hash (Uses the extracted gMSA hash to authenticate via NTLM to services running as gmsa_sql).",
+      logType: "attack", // Using the hash for lateral movement
+      action: () => {
+        highlightElement("srv_sql01"); // Host running the gMSA service
+        addTemporaryEdge("attacker", "srv_sql01", "SMB/RPC", "PtH (gMSA Hash)");
+      }
+    },
+    {
+      logMessage:
+        "Target Service Host (srv_sql01): Authenticates the attacker as the 'gmsa_sql' account.",
+      logType: "success",
+      action: () => highlightElement("srv_sql01", stepDelay, "compromised"),
+    },
+    {
+      logMessage:
+        "IMPACT: Attacker with high privileges read gMSA password data from AD, extracted the hash offline, and used it via Pass-the-Hash to compromise systems or services running under that gMSA.",
+      logType: "success",
+    },
+  ];
+
+
+  const attackAdminSDHolderScenario = [
+    {
+      scenarioName: "Attack: AdminSDHolder Backdoor",
+      logMessage:
+        "Attacker Goal: Gain persistent privileged access by adding an attacker-controlled principal to the ACL of the AdminSDHolder object.",
+      logType: "attack",
+      action: () => highlightElement("attacker"),
+    },
+    {
+      logMessage:
+        "Prerequisite: Attacker has compromised credentials with rights to modify the ACL of the AdminSDHolder object (CN=AdminSDHolder,CN=System,DC=corp,DC=local). Typically requires Domain Admin or equivalent.",
+      logType: "attack",
+      action: () => {
+        highlightElement("admin1", stepDelay, "compromised"); // Assume attacker has DA creds
+        highlightElement("dc01");
+        highlightElement("user2"); // A user the attacker controls/created
+      },
+    },
+    {
+      logMessage:
+        "Attacker (as admin1) -> DC01: LDAP Modify Request (Targets the AdminSDHolder object. Adds an Access Control Entry (ACE) granting the 'CORP\\BOB' Full Control permissions).",
+      logType: "attack", // Modifying the template ACL
+      action: () =>
+        addTemporaryEdge("attacker", "dc01", "LDAP", "Modify AdminSDHolder ACL"),
+    },
+    {
+      logMessage:
+        "DC01: Updates the ACL on the AdminSDHolder object in the System container.",
+      logType: "ldap",
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage:
+        "DC01 (SDProp Process): Periodically (default: 60 mins), the Security Descriptor Propagator process runs on the DC holding the PDC Emulator FSMO role.",
+      logType: "info", // System process
+      action: () => highlightElement("dc01"),
+      delay: 2000, // Simulate delay before SDProp runs
+    },
+    {
+      logMessage:
+        "DC01 (SDProp Process): Compares ACLs of protected users/groups (e.g., Domain Admins, Enterprise Admins, Administrators, etc.) against the AdminSDHolder template ACL. Finds differences.",
+      logType: "info", // Internal DC check
+      action: () => highlightElement("dc01"),
+    },
+    {
+      logMessage:
+        "DC01 (SDProp Process) -> DC01: LDAP Modify (Overwrites the ACLs of protected objects like the 'Domain Admins' group with the ACL from AdminSDHolder, including the attacker's ACE). Inheritance is disabled.",
+      logType: "system", // Automatic ACL propagation by the system
+      action: () => {
+        highlightElement("domain_admins_group", stepDelay, "highlighted"); // ACL overwritten
+        // Attacker's controlled user now implicitly has rights ON the DA group
+      }
+    },
+    {
+      logMessage:
+        "Attacker (as user2): Now has permissions defined by the AdminSDHolder ACL (e.g., Full Control) over all protected groups/users, such as 'Domain Admins'.",
+      logType: "attack",
+      action: () => highlightElement("user2", stepDelay, "privileged"), // User gained privs
+    },
+    {
+      logMessage:
+        "Attacker (as user2) -> DC01: LDAP Modify (Uses newly gained permissions, e.g., adds itself to the 'Domain Admins' group).",
+      logType: "attack", // Exploiting the propagated permissions
+      action: () =>
+        addTemporaryEdge("user2", "dc01", "LDAP", "Add Self to DA Group"),
+    },
+    {
+      logMessage:
+        "IMPACT: Attacker modified the AdminSDHolder template ACL. The SDProp process automatically propagated this malicious permission to all protected groups/users, granting the attacker's account persistent privileged access that resists manual ACL changes on the protected objects themselves.",
+      logType: "success",
+    },
+  ];
+
 
   // --- Event Listeners ---
   function addEventListenerSafe(elementId, callback) {
@@ -3570,6 +4019,11 @@ document.addEventListener("DOMContentLoaded", function () {
     "btn-attack-ms14",
     "btn-attack-samr",
     "btn-attack-ntds",
+    "btn-attack-gpo",
+    "btn-attack-kcd",
+    "btn-attack-laps",
+    "btn-attack-gmsa",
+    "btn-attack-adminsd",
   ];
 
   newAttackButtons.forEach((buttonId) => {
@@ -3594,6 +4048,11 @@ document.addEventListener("DOMContentLoaded", function () {
         "btn-attack-ms14": attackMS14068Scenario,
         "btn-attack-samr": attackSAMRAbuseScenario,
         "btn-attack-ntds": attackNTDSExtractionScenario,
+        "btn-attack-gpo": attackGPOAbuseScenario,
+        "btn-attack-kcd": attackKCDAbuseScenario,
+        "btn-attack-laps": attackLAPSAbuseScenario,
+        "btn-attack-gmsa": attackGMSAAbuseScenario,
+        "btn-attack-adminsd": attackAdminSDHolderScenario,
       };
 
       if (scenarioMap[buttonId]) {
@@ -3606,7 +4065,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   addEventListenerSafe("btn-reset", () => resetSimulationState(true));
   addEventListenerSafe("btn-next-step", handleNextStep);
-  addEventListenerSafe("chk-manual-mode", () => {}); // State checked on scenario start
+  addEventListenerSafe("chk-manual-mode", () => { }); // State checked on scenario start
 
   // --- Initial Execution ---
   initializeCytoscape(initialElements);
