@@ -403,7 +403,7 @@ details.scenario-group[open] > summary { color: var(--text-primary); }
 
 /* ── Log area ── */
 #log-area {
-  height: 200px;
+  height: 300px;
   min-height: 80px;
   max-height: 60%;
   flex-shrink: 0;
