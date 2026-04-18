@@ -18,6 +18,11 @@ export function log(message, type = 'info') {
     case 'http':     icon = '<i class="fas fa-globe fa-fw me-1"></i>'; break;
     case 'drsuapi':  icon = '<i class="fas fa-database fa-fw me-1"></i>'; break;
     case 'ntlm':     icon = '<i class="fas fa-fingerprint fa-fw me-1"></i>'; break;
+    case 'oidc':     icon = '<i class="fas fa-id-badge fa-fw me-1"></i>'; break;
+    case 'prt':      icon = '<i class="fas fa-ticket-alt fa-fw me-1"></i>'; break;
+    case 'tpm':      icon = '<i class="fas fa-microchip fa-fw me-1"></i>'; break;
+    case 'msgraph':  icon = '<i class="fas fa-project-diagram fa-fw me-1"></i>'; break;
+    case 'imds':     icon = '<i class="fas fa-cloud fa-fw me-1"></i>'; break;
     default:
       icon = '<i class="fas fa-angle-right fa-fw me-1"></i>';
   }

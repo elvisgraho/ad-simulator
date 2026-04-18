@@ -1,0 +1,337 @@
+import { highlightElement, addTemporaryEdge } from '../graph.js';
+import { stepDelay } from '../state.js';
+
+// ── 1. Interactive Sign-in (OAuth2 PKCE Auth Code + MFA) ─────────────────────
+export const entraInteractiveSignInScenario = [
+  {
+    scenarioName: "Entra ID Interactive Sign-in (OAuth2 PKCE + MFA)",
+    logMessage: "Alice (ent_user1) opens M365 from LAPTOP-02 (ent_dev2) — Entra-registered device, no WHfB enrolled.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev2"); },
+  },
+  {
+    logMessage: "LAPTOP-02 → Entra ID: GET /oauth2/v2.0/authorize?client_id=...&scope=openid+Mail.Read&response_type=code&code_challenge=<SHA-256>&code_challenge_method=S256&state&nonce",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "GET /authorize"),
+  },
+  {
+    logMessage: "Entra ID: No existing session cookie found for this device/user. Renders interactive login page (HTML). No PRT available on unmanaged device.",
+    logType: "oidc",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Alice → Entra ID: POST /login (UPN: alice@corp.onmicrosoft.com + password). Transmitted over TLS 1.3. Entra ID validates credential hash against directory store.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "POST /login"),
+  },
+  {
+    logMessage: "Entra ID: Credentials valid. Sign-in risk ML evaluation: Low. User requires MFA per policy — dispatches push notification to Microsoft Authenticator app (number matching enabled).",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Alice approves Authenticator push (displays matching number '42'). Entra ID: MFA claim satisfied (amr: [pwd, mfa]).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "MFA approved"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-02: HTTP 302 redirect to redirect_uri with authorization code (10-min TTL, single-use, bound to code_challenge).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev2", "oidc", "auth_code"),
+  },
+  {
+    logMessage: "LAPTOP-02 → Entra ID: POST /oauth2/v2.0/token (grant_type=authorization_code, code, code_verifier — proves original PKCE initiator, client_id, redirect_uri).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "POST /token"),
+  },
+  {
+    logMessage: "Entra ID: Validates auth code. Verifies SHA-256(code_verifier) == stored code_challenge (PKCE — prevents authorization code interception). Builds JWT claims.",
+    logType: "oidc",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-02: 200 OK { access_token (JWT, 1h), id_token (OIDC), refresh_token (14d, sliding), token_type: Bearer, scope }.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev2", "oidc", "tokens issued"),
+  },
+  {
+    logMessage: "LAPTOP-02 → M365: GET /api/mail (Authorization: Bearer <access_token>). JWT claims: upn, tid, scp=Mail.Read, amr=[pwd,mfa], iat, exp. Signed with Entra RS256 key.",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_dev2", "ent_m365", "http", "Bearer token"),
+  },
+  {
+    logMessage: "M365: Validates token signature against Entra ID JWKS endpoint. Claims verified (audience, issuer, expiry, scopes). Access granted to Alice's mailbox.",
+    logType: "success",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
+  },
+];
+
+// ── 2. Windows Hello for Business Sign-in (TPM-backed) ───────────────────────
+export const entraWHfBSignInScenario = [
+  {
+    scenarioName: "Windows Hello for Business Sign-in (TPM 2.0-backed)",
+    logMessage: "Alice at LAPTOP-01 (ent_dev1, Entra-joined + WHfB enrolled). Device wakes — WHfB credential provider prompts for gesture.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev1"); },
+  },
+  {
+    logMessage: "TPM 2.0 (LAPTOP-01): Alice enters PIN. Windows verifies PIN value against TPM-sealed blob (PCR policy binding). TPM 2.0 unseals the WHfB private key — key material NEVER leaves the TPM boundary.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "Cloud AP Plugin (LAPTOP-01): Contacts Entra ID to get a nonce for the signed assertion (prevents replay attacks).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "GET /nonce"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: Returns encrypted nonce (server-generated entropy, short TTL, single-use).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "nonce"),
+  },
+  {
+    logMessage: "Cloud AP Plugin: Constructs PRT renewal JWT. { alg: RS256, kid: <WHfB_key_id> } / { sub: alice@corp, did: <device_id>, nonce, nbf, exp }. TPM signs JWT with WHfB private key — RS256 signature computed fully inside TPM hardware.",
+    logType: "tpm",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "tpm", "Sign(WHfB key)"),
+  },
+  {
+    logMessage: "LAPTOP-01 → Entra ID: POST /oauth2/v2.0/token (grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, assertion=<TPM-signed JWT>, client_info, request_nonce).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "PRT renew req"),
+  },
+  {
+    logMessage: "Entra ID: Resolves device_id → retrieves device object. Fetches Alice's registered WHfB public key (stored during WHfB provisioning). Validates RS256 JWT signature — proves key resides in TPM on this enrolled device.",
+    logType: "prt",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID: Evaluates Conditional Access. Sign-in risk: None (device-bound credential, no password). Device: Entra-joined, Intune-compliant ✓. All CA controls satisfied without MFA prompt (WHfB is MFA by design: PIN = something you know, TPM = something you have).",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: Issues PRT (opaque token, 14-day TTL, device+user bound) + session key encrypted with device transport key (also stored in TPM). PRT cannot be extracted — tied to this hardware.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "PRT issued"),
+  },
+  {
+    logMessage: "Cloud AP Plugin: Stores PRT in LSASS protected memory. TPM decrypts session key via transport key. PRT is device-locked — cannot be used from another machine even if LSASS memory is dumped.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "WHfB sign-in complete. Alice is authenticated. All subsequent cloud app access will use PRT for silent SSO — no repeated credential prompts.",
+    logType: "success",
+    action: () => { highlightElement("ent_dev1"); highlightElement("ent_user1"); },
+  },
+];
+
+// ── 3. PRT Silent SSO via WAM ─────────────────────────────────────────────────
+export const entraPRTSSOScenario = [
+  {
+    scenarioName: "PRT Silent SSO — Token Acquisition via WAM",
+    logMessage: "Alice opens Microsoft Teams on LAPTOP-01 (ent_dev1). WAM (Web Account Manager) broker intercepts the token request from Teams.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev1"); },
+  },
+  {
+    logMessage: "Teams → WAM (broker): AcquireTokenSilent(scope=https://api.spaces.skype.com/.default). WAM checks its in-memory PRT cache — valid PRT found for alice@corp, 11 days remaining.",
+    logType: "prt",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "WAM: Requests a fresh nonce from Entra ID to sign the PRT token request (replay prevention — nonce is time-bound and single-use).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "GET /nonce"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: Encrypted nonce returned.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "nonce"),
+  },
+  {
+    logMessage: "TPM 2.0 (LAPTOP-01): WAM asks Cloud AP Plugin to sign the PRT request. TPM decrypts the session key (bound to TPM device transport key during PRT issuance), uses session key to sign HMAC over nonce + request params. Proves device possession without re-entering credentials.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "LAPTOP-01 → Entra ID: POST /oauth2/v2.0/token (grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, assertion=<PRT cookie signed with session key>, request_nonce, scope=Teams+openid+profile).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "SSO token req"),
+  },
+  {
+    logMessage: "Entra ID: Validates PRT (checks expiry, device binding, session key signature over nonce). Re-evaluates CA policies — all controls satisfied. PRT satisfies MFA requirement (amr=ngcmfa from original WHfB sign-in).",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: 200 OK { access_token (JWT, 1h, scp=Teams), token_type: Bearer } + refreshed PRT cookie (sliding 14-day window renewal). JWT amr claim includes 'ngcmfa' (Next Gen Credentials MFA).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "oidc", "access_token"),
+  },
+  {
+    logMessage: "Teams → M365 Graph API: GET /v1.0/me/joinedTeams (Authorization: Bearer <access_token>). Graph validates token against Entra JWKS and returns Teams membership data.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_dev1", "ent_m365", "msgraph", "GET /me/joinedTeams"),
+  },
+  {
+    logMessage: "Teams renders workspace. No credential prompt shown — fully transparent SSO. Total time from app launch to data: ~200ms. PRT lifecycle extended.",
+    logType: "success",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
+  },
+];
+
+// ── 4. Conditional Access — Compliant Device Enforcement ─────────────────────
+export const entraConditionalAccessScenario = [
+  {
+    scenarioName: "Conditional Access — Compliant Device Enforcement",
+    logMessage: "Bob (ent_user2) on LAPTOP-02 (ent_dev2 — Entra-registered only, NOT Intune-managed, no WHfB) attempts to access SharePoint Online.",
+    logType: "info",
+    action: () => { highlightElement("ent_user2"); highlightElement("ent_dev2"); },
+  },
+  {
+    logMessage: "LAPTOP-02 → Entra ID: GET /oauth2/v2.0/authorize (scope=https://corp.sharepoint.com/.default, response_type=code, PKCE). No PRT available — no WHfB, no Entra join.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "GET /authorize"),
+  },
+  {
+    logMessage: "Bob → Entra ID: POST /login (UPN + password). MFA triggered — Authenticator push. Bob approves.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "Auth + MFA"),
+  },
+  {
+    logMessage: "Entra ID → Conditional Access Engine: Evaluating policies for (Bob, LAPTOP-02, SharePoint Online, corp network, sign-in risk: Low).",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "CA Policy 'Require compliant device — SharePoint': User in scope ✓ | App: SharePoint ✓ | Platform: Windows ✓ | Device compliance (Intune): UNKNOWN (device not enrolled) ✗ | Hybrid AAD join: NOT joined ✗. Required control NOT met.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "CA Engine: Compliant device grant control failed. Checking session policy fallback: 'App-enforced restrictions' (via Defender for Cloud Apps). Applies session-level access controls rather than full block.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID: Token issued. access_token lacks deviceid claim (unmanaged device). Sets x-ms-cpim-slice for app-enforced session controls. Refresh token TTL capped at 1h (short session for unmanaged device).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev2", "oidc", "token (restricted)"),
+  },
+  {
+    logMessage: "LAPTOP-02 → SharePoint: GET https://corp.sharepoint.com (Bearer token). SharePoint detects missing device compliance claim → enforces app-enforced CA via MCAS proxy.",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_dev2", "ent_m365", "http", "restricted session"),
+  },
+  {
+    logMessage: "SharePoint grants read-only browser access. Download blocked, OneDrive sync disabled, copy to unmanaged apps blocked. Bob can view documents but cannot exfiltrate data via this device.",
+    logType: "success",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user2"); },
+  },
+];
+
+// ── 5. Managed Identity — Key Vault Secret Retrieval ─────────────────────────
+export const entraManagedIdentityScenario = [
+  {
+    scenarioName: "Managed Identity — Key Vault Secret Retrieval",
+    logMessage: "Azure-hosted App (ent_svc) starts and requires a DB connection string from Key Vault (ent_kv). App uses system-assigned Managed Identity (ent_mi) — no credentials in code or config.",
+    logType: "info",
+    action: () => { highlightElement("ent_svc"); highlightElement("ent_mi"); },
+  },
+  {
+    logMessage: "App → Azure IMDS: GET http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net (Header: Metadata: true). IMDS is a link-local endpoint at the hypervisor — not reachable from outside the VM.",
+    logType: "imds",
+    action: () => addTemporaryEdge("ent_svc", "ent_mi", "imds", "MI token req"),
+  },
+  {
+    logMessage: "Azure IMDS: Identifies system-assigned Managed Identity bound to this compute resource. Resolves the associated service principal object in Entra ID. Initiates internal token acquisition on behalf of the workload.",
+    logType: "imds",
+    action: () => highlightElement("ent_mi"),
+  },
+  {
+    logMessage: "IMDS → Entra ID: client_credentials token request using MI's certificate credential (managed by Azure platform, never exposed to app). audience=https://vault.azure.net.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_mi", "ent_tenant", "oidc", "MI cred flow"),
+  },
+  {
+    logMessage: "Entra ID: Validates MI service principal. Checks Azure Resource Manager — MI assigned to this resource ✓. Issues access_token (JWT, 1h, aud=https://vault.azure.net) signed with Entra RS256 key.",
+    logType: "oidc",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → IMDS → App: { access_token: 'eyJ0eX...', token_type: Bearer, expires_in: 3599, expires_on: <unix_ts> }. App never sees the MI certificate — only the resulting token.",
+    logType: "imds",
+    action: () => addTemporaryEdge("ent_mi", "ent_svc", "imds", "token returned"),
+  },
+  {
+    logMessage: "App → Key Vault: GET https://corp-kv.vault.azure.net/secrets/db-connstr?api-version=7.4 (Authorization: Bearer <MI_access_token>).",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_svc", "ent_kv", "http", "GET /secrets/db-connstr"),
+  },
+  {
+    logMessage: "Key Vault: Validates JWT signature (public key from Entra JWKS). Checks claims: aud=vault.azure.net ✓ | iss=login.microsoftonline.com ✓ | exp ✓. Evaluates Azure RBAC: MI service principal has 'Key Vault Secrets User' role ✓.",
+    logType: "info",
+    action: () => highlightElement("ent_kv"),
+  },
+  {
+    logMessage: "Key Vault → App: 200 OK { value: '<db_connection_string>', id: '...secrets/db-connstr/abc123', attributes: { enabled, created, updated, exp } }. Secret delivered. No credentials stored in environment variables or app config.",
+    logType: "success",
+    action: () => { highlightElement("ent_svc"); highlightElement("ent_kv"); },
+  },
+];
+
+// ── 6. PIM Just-in-Time Admin Role Activation ────────────────────────────────
+export const entraPIMActivationScenario = [
+  {
+    scenarioName: "PIM Just-in-Time Role Activation (Global Admin)",
+    logMessage: "EntraAdmin (ent_admin) needs to perform privileged Entra directory operations. Has zero standing admin privileges — only a PIM-eligible assignment for Global Administrator.",
+    logType: "info",
+    action: () => highlightElement("ent_admin"),
+  },
+  {
+    logMessage: "EntraAdmin → Entra ID PIM API: GET /privilegedAccess/aadRoles/resources/{tenantId}/roleAssignments?$filter=type eq 'Eligible' and subject/id eq '{adminObjectId}'. Lists eligible roles.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "GET eligible roles"),
+  },
+  {
+    logMessage: "Entra PIM: Returns eligible role assignment — GlobalAdministrator (roleDefinitionId: 62e90394-...). Activation policy: Max duration 4h | Justification required: Yes | MFA required: Yes | Approval required: No.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "EntraAdmin → Entra PIM: POST /privilegedAccess/aadRoles/roleAssignmentRequests { roleDefinitionId: GlobalAdmin, type: UserAdd, assignmentState: Active, justification: 'Emergency patch deployment — INC-7741', scheduleInfo: { duration: PT2H } }.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "activation req"),
+  },
+  {
+    logMessage: "Entra PIM: Activation requires MFA step-up (current session token lacks recent MFA claim). Triggers Authenticator push challenge to EntraAdmin.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "MFA step-up"),
+  },
+  {
+    logMessage: "EntraAdmin approves MFA push. Entra ID issues step-up token with refreshed 'mfa' amr claim (max age validated). PIM proceeds with activation.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra PIM: Creates time-bound active assignment — GlobalAdministrator, valid for 2h from now. Writes to Entra ID Audit Log: { actor: EntraAdmin, operation: Add member to role, target: GlobalAdministrator, timestamp, justification }.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → EntraAdmin: 201 Created. Role active. On next token request, access_token will contain 'wids' claim with GlobalAdministrator role GUID (62e90394-69f5-4237-9190-012177145e10).",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_admin", "oidc", "role active (2h)"),
+  },
+  {
+    logMessage: "EntraAdmin → Entra ID: PATCH /users/{targetId} with elevated token. Entra ID validates 'wids' claim — GlobalAdmin role present ✓. Privileged directory write operation authorized and executed.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "privileged op"),
+  },
+  {
+    logMessage: "Operation complete. PIM role auto-deactivates in 2h. Full audit trail preserved: activation request, justification, MFA event, all privileged operations — visible in Entra Sign-in Logs and Audit Logs.",
+    logType: "success",
+    action: () => { highlightElement("ent_admin"); highlightElement("ent_tenant"); },
+  },
+];

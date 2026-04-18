@@ -51,6 +51,47 @@ const NODE_ICONS = {
     <circle cx="9.5" cy="11" r="1.5" fill="#e03131"/>
     <circle cx="14.5" cy="11" r="1.5" fill="#e03131"/>
     <path d="M9 20h2v-2.5h2V20h2" stroke="#e03131" stroke-width="1.5"/>`),
+
+  // ── Entra ID node types ──
+  entra: svgIcon(`
+    <rect x="5" y="11" width="14" height="10" rx="1.5" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <circle cx="12" cy="16.5" r="1.5" fill="#0078d4"/>`),
+
+  entrauser: svgIcon(`
+    <circle cx="12" cy="8" r="4" stroke="#50b4e8" stroke-width="1.5" fill="none"/>
+    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#50b4e8" stroke-width="1.5" fill="none"/>
+    <path d="M17 3a3 3 0 0 1 3 3" stroke="#50b4e8" stroke-width="1.2" fill="none"/>`),
+
+  entraadmin: svgIcon(`
+    <circle cx="12" cy="11" r="3.5" stroke="#ff8c00" stroke-width="1.5" fill="none"/>
+    <path d="M5 21c0-3.5 3.1-6 7-6s7 2.5 7 6" stroke="#ff8c00" stroke-width="1.5" fill="none"/>
+    <path d="M8.5 4.5h7l.5 2.5-4 3-4-3 .5-2.5z" stroke="#ff8c00" stroke-width="1.5" fill="none"/>`),
+
+  entradevice: svgIcon(`
+    <rect x="3" y="4" width="18" height="13" rx="1" stroke="#50e6ff" stroke-width="1.5" fill="none"/>
+    <path d="M3 21h18" stroke="#50e6ff" stroke-width="1.5"/>
+    <line x1="12" y1="17" x2="12" y2="21" stroke="#50e6ff" stroke-width="1.5"/>
+    <path d="M9 11l2 2 4-4" stroke="#50e6ff" stroke-width="1.5"/>`),
+
+  entrasvc: svgIcon(`
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="#8764b8" stroke-width="1.5" fill="none"/>
+    <path d="M3 9h18" stroke="#8764b8" stroke-width="1.5"/>
+    <circle cx="7" cy="6" r="1" fill="#8764b8"/>
+    <circle cx="10" cy="6" r="1" fill="#8764b8"/>
+    <path d="M8 14l2 2 4-4" stroke="#8764b8" stroke-width="1.5"/>`),
+
+  entrami: svgIcon(`
+    <rect x="5" y="8" width="14" height="11" rx="2" stroke="#00b294" stroke-width="1.5" fill="none"/>
+    <circle cx="9" cy="13" r="1.5" fill="#00b294"/>
+    <circle cx="15" cy="13" r="1.5" fill="#00b294"/>
+    <path d="M9.5 17h5" stroke="#00b294" stroke-width="1.5"/>
+    <path d="M12 4v4M10 4h4" stroke="#00b294" stroke-width="1.5"/>`),
+
+  entrarsc: svgIcon(`
+    <ellipse cx="12" cy="6" rx="7" ry="2.5" stroke="#107c10" stroke-width="1.5" fill="none"/>
+    <path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6" stroke="#107c10" stroke-width="1.5" fill="none"/>
+    <line x1="5" y1="12" x2="19" y2="12" stroke="#107c10" stroke-width="1" stroke-dasharray="2 2"/>`),
 };
 
 export const initialElements = [
@@ -71,12 +112,38 @@ export const initialElements = [
   { data: { id: 'krbtgt', name: 'krbtgt', type: 'svc', sam: 'CORP\\krbtgt', ntlm_hash: 'KRBTGT_HASH_SECRET' }, classes: 'cy-node cy-node-svc high-value', style: { display: 'none' } },
 ];
 
+export const entraInitialElements = [
+  // ── Identity plane ──
+  { data: { id: 'ent_tenant', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 480, y: 80 } },
+  { data: { id: 'ent_admin',  name: 'EntraAdmin', type: 'entraadmin', upn: 'admin@corp.onmicrosoft.com', pimEligible: true }, classes: 'cy-node cy-node-entraadmin high-value', position: { x: 290, y: 80 } },
+
+  // ── Client devices ──
+  { data: { id: 'ent_dev1', name: 'LAPTOP-01', type: 'entradevice', deviceId: 'dev-01', entraJoined: true, tpm: true, whfb: true, intuneCompliant: true }, classes: 'cy-node cy-node-entradevice', position: { x: 170, y: 200 } },
+  { data: { id: 'ent_dev2', name: 'LAPTOP-02', type: 'entradevice', deviceId: 'dev-02', entraRegistered: true, tpm: false, intuneCompliant: false }, classes: 'cy-node cy-node-entradevice', position: { x: 60, y: 310 } },
+
+  // ── Users ──
+  { data: { id: 'ent_user1', name: 'Alice', type: 'entrauser', upn: 'alice@corp.onmicrosoft.com', objectId: 'user-alice' }, classes: 'cy-node cy-node-entrauser', position: { x: 170, y: 330 } },
+  { data: { id: 'ent_user2', name: 'Bob',   type: 'entrauser', upn: 'bob@corp.onmicrosoft.com',   objectId: 'user-bob'   }, classes: 'cy-node cy-node-entrauser', position: { x: 60,  y: 430 } },
+
+  // ── Workload identities ──
+  { data: { id: 'ent_svc', name: 'AppReg-01', type: 'entrasvc', appId: 'app-01', objectId: 'svc-01' }, classes: 'cy-node cy-node-entrasvc', position: { x: 640, y: 270 } },
+  { data: { id: 'ent_mi',  name: 'WebApp-MI', type: 'entrami',  objectId: 'mi-01', miType: 'SystemAssigned' }, classes: 'cy-node cy-node-entrami',  position: { x: 750, y: 360 } },
+
+  // ── Resources ──
+  { data: { id: 'ent_m365', name: 'M365 / Teams', type: 'entrarsc', url: 'https://teams.microsoft.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 650, y: 90 } },
+  { data: { id: 'ent_kv',   name: 'Key Vault',    type: 'entrarsc', url: 'https://corp-kv.vault.azure.net' }, classes: 'cy-node cy-node-entrarsc', position: { x: 760, y: 190 } },
+
+  // ── Threat actor ──
+  { data: { id: 'ent_attacker', name: 'Attacker', type: 'attacker', ip: '185.220.x.x' }, classes: 'cy-node cy-node-attacker', position: { x: 370, y: 450 } },
+];
+
 export function initializeCytoscape(elements) {
   if (state.cy) state.cy.destroy();
 
   state.cy = cytoscape({
     container: document.getElementById('cy'),
     elements: JSON.parse(JSON.stringify(elements)),
+    userZoomingEnabled: false,
     style: [
       {
         selector: 'node',
@@ -143,6 +210,22 @@ export function initializeCytoscape(elements) {
       { selector: '.http-edge',     style: { 'line-color': '#63e6be', 'target-arrow-color': '#63e6be', width: 2,                           'z-index': 8  } },
       { selector: '.attack-flow',   style: { 'line-color': '#e03131', 'target-arrow-color': '#e03131', width: 3,                           'z-index': 12 } },
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
+
+      // ── Entra ID node types ──
+      { selector: '.cy-node-entra',       style: { shape: 'diamond',       width: '68px', height: '68px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5 } },
+      { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#00182e', 'border-color': '#50b4e8' } },
+      { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',       width: '56px', height: '56px', 'background-color': '#2a1400', 'border-color': '#ff8c00' } },
+      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff' } },
+      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',      width: '52px', height: '52px', 'background-color': '#160d2c', 'border-color': '#8764b8' } },
+      { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
+      { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },
+
+      // ── Entra protocol edges ──
+      { selector: '.oidc-edge',    style: { 'line-color': '#0078d4', 'target-arrow-color': '#0078d4', width: 2.5, 'z-index': 10 } },
+      { selector: '.prt-edge',     style: { 'line-color': '#50b4e8', 'target-arrow-color': '#50b4e8', width: 2,   'line-style': 'dashed', 'z-index': 10 } },
+      { selector: '.tpm-edge',     style: { 'line-color': '#f0a30a', 'target-arrow-color': '#f0a30a', width: 2.5, 'z-index': 11 } },
+      { selector: '.msgraph-edge', style: { 'line-color': '#00b294', 'target-arrow-color': '#00b294', width: 2,   'z-index': 9  } },
+      { selector: '.imds-edge',    style: { 'line-color': '#7a43b6', 'target-arrow-color': '#7a43b6', width: 2,   'line-style': 'dotted', 'z-index': 9 } },
     ],
     layout: { name: 'preset' },
   });

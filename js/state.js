@@ -8,4 +8,5 @@ export const state = {
   currentScenario: [],
   currentStep: -1,
   manualStepEdges: [],
+  mode: 'ad',           // 'ad' | 'entra'
 };
