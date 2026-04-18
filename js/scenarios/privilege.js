@@ -12,24 +12,24 @@ export const attackLAPSAbuseScenario = [
   },
   {
     logMessage:
-      "Prerequisite: Attacker has compromised credentials (e.g., 'helpdesk_user') that have been granted READ access to the 'ms-Mcs-AdmPwd' attribute on target computer objects in AD.",
+      "Prerequisite: Attacker has compromised credentials (e.g., 'user2') that have been granted READ access to the 'ms-Mcs-AdmPwd' attribute on target computer objects in AD.",
     logType: "attack",
     action: () => {
-      highlightElement("helpdesk_user", stepDelay, "compromised");
+      highlightElement("user2", stepDelay, "compromised");
       highlightElement("dc01");
       highlightElement("host1"); // Target computer whose LAPS pwd we want
     },
   },
   {
     logMessage:
-      "Attacker (as helpdesk_user) -> DC01: LDAP Search Request (Querying the computer object 'host1' and specifically requesting the 'ms-Mcs-AdmPwd' attribute).",
+      "Attacker (as user2) -> DC01: LDAP Search Request (Querying the computer object 'host1' and specifically requesting the 'ms-Mcs-AdmPwd' attribute).",
     logType: "ldap",
     action: () =>
       addTemporaryEdge("attacker", "dc01", "LDAP", "Query LAPS Pwd (host1)"),
   },
   {
     logMessage:
-      "DC01: Receives query. Performs ACL check: confirms 'helpdesk_user' has read permission for 'ms-Mcs-AdmPwd' on 'host1' object.",
+      "DC01: Receives query. Performs ACL check: confirms 'user2' has read permission for 'ms-Mcs-AdmPwd' on 'host1' object.",
     logType: "ldap",
     action: () => highlightElement("dc01"),
   },
@@ -78,17 +78,17 @@ export const attackGMSAAbuseScenario = [
   },
   {
     logMessage:
-      "Prerequisite: Attacker has compromised credentials (e.g., 'priv_user') with privileges to read gMSA password data (Requires specific AD rights, often Domain Admin equivalent or delegated).",
+      "Prerequisite: Attacker has compromised credentials (e.g., 'admin1') with privileges to read gMSA password data (Requires specific AD rights, often Domain Admin equivalent or delegated).",
     logType: "attack",
     action: () => {
-      highlightElement("priv_user", stepDelay, "compromised");
+      highlightElement("admin1", stepDelay, "compromised");
       highlightElement("dc01");
-      highlightElement("gmsa_sql"); // Example gMSA account
+      highlightElement("svc_sql01"); // Example gMSA account
     },
   },
   {
     logMessage:
-      "Attacker (as priv_user) -> DC01: LDAP Search (Querying the gMSA object 'gmsa_sql', requesting the 'msDS-ManagedPassword' attribute blob).",
+      "Attacker (as admin1) -> DC01: LDAP Search (Querying the gMSA object 'svc_sql01', requesting the 'msDS-ManagedPassword' attribute blob).",
     logType: "ldap",
     action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Query gMSA Pwd Blob"),
   },
@@ -106,13 +106,13 @@ export const attackGMSAAbuseScenario = [
   },
   {
     logMessage:
-      "Attacker: Now possesses the NTLM hash for the 'gmsa_sql' account.",
+      "Attacker: Now possesses the NTLM hash for the 'svc_sql01' account.",
     logType: "attack",
-    action: () => highlightElement("gmsa_sql", stepDelay, "compromised"),
+    action: () => highlightElement("svc_sql01", stepDelay, "compromised"),
   },
   {
     logMessage:
-      "Attacker -> Target Service Host (e.g., srv_sql01): Pass-the-Hash (Uses the extracted gMSA hash to authenticate via NTLM to services running as gmsa_sql).",
+      "Attacker -> Target Service Host (e.g., srv_sql01): Pass-the-Hash (Uses the extracted gMSA hash to authenticate via NTLM to services running as svc_sql01).",
     logType: "attack", // Using the hash for lateral movement
     action: () => {
       highlightElement("srv_sql01"); // Host running the gMSA service
@@ -121,7 +121,7 @@ export const attackGMSAAbuseScenario = [
   },
   {
     logMessage:
-      "Target Service Host (srv_sql01): Authenticates the attacker as the 'gmsa_sql' account.",
+      "Target Service Host (srv_sql01): Authenticates the attacker as the 'svc_sql01' account.",
     logType: "success",
     action: () => highlightElement("srv_sql01", stepDelay, "compromised"),
   },
@@ -223,7 +223,7 @@ export const attackKCDAbuseScenario = [
     action: () => {
       highlightElement("attacker");
       highlightElement("srv_app01", stepDelay, "compromised"); // Frontend service compromised
-      highlightElement("svc_app01"); // Account running frontend service
+      highlightElement("svc_sql01"); // Represents the service account running the frontend service
       highlightElement("srv_files01"); // Backend service target
     },
   },
@@ -402,28 +402,28 @@ export const attackGPOAbuseScenario = [
   },
   {
     logMessage:
-      "Prerequisite: Attacker has compromised credentials with permissions to edit a specific GPO (e.g., member of 'Group Policy Creator Owners' or direct ACL). Assume compromised 'gpo_editor' user.",
+      "Prerequisite: Attacker has compromised credentials with permissions to edit a specific GPO (e.g., member of 'Group Policy Creator Owners' or direct ACL). Assume compromised 'user2' user.",
     logType: "attack",
     action: () => {
-      highlightElement("gpo_editor", stepDelay, "compromised");
+      highlightElement("user2", stepDelay, "compromised");
       highlightElement("dc01"); // GPOs are stored/managed via DC
     },
   },
   {
     logMessage:
-      "Attacker (as gpo_editor) -> DC01: SMB Connection (Accessing SYSVOL share where GPO files are stored, e.g., \\\\dc01\\SYSVOL\\...).",
+      "Attacker (as user2) -> DC01: SMB Connection (Accessing SYSVOL share where GPO files are stored, e.g., \\\\dc01\\SYSVOL\\...).",
     logType: "smb",
     action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Connect SYSVOL"),
   },
   {
     logMessage:
-      "Attacker (as gpo_editor) -> DC01: Modify GPO Files (e.g., Adds malicious startup script, scheduled task XML, or modifies registry settings within the GPO files on SYSVOL).",
+      "Attacker (as user2) -> DC01: Modify GPO Files (e.g., Adds malicious startup script, scheduled task XML, or modifies registry settings within the GPO files on SYSVOL).",
     logType: "attack", // Modifying policy files
     action: () => addTemporaryEdge("attacker", "dc01", "SMB", "Modify GPO Files"),
   },
   {
     logMessage:
-      "Attacker (as gpo_editor) -> DC01: LDAP Modify (Updates GPO version number in AD object to trigger client refresh).",
+      "Attacker (as user2) -> DC01: LDAP Modify (Updates GPO version number in AD object to trigger client refresh).",
     logType: "ldap",
     action: () => addTemporaryEdge("attacker", "dc01", "LDAP", "Update GPO Version"),
   },
