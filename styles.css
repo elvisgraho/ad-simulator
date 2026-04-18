@@ -280,6 +280,8 @@ details.scenario-group[open] > summary { color: var(--text-primary); }
 .cat-lateral { border-left-color: #dcdcaa !important; }
 .cat-cert    { border-left-color: #f44747 !important; }
 .cat-domain  { border-left-color: #e03131 !important; }
+.cat-token   { border-left-color: #50b4e8 !important; }
+.cat-azurerm { border-left-color: #e86c00 !important; }
 
 .icon-legit   { color: #4ec9b0; }
 .icon-enum    { color: #dcdcaa; }
@@ -289,6 +291,8 @@ details.scenario-group[open] > summary { color: var(--text-primary); }
 .icon-lateral { color: #dcdcaa; }
 .icon-cert    { color: #f44747; }
 .icon-domain  { color: #e03131; }
+.icon-token   { color: #50b4e8; }
+.icon-azurerm { color: #e86c00; }
 
 /* ── Legend ── */
 .legend-panel {

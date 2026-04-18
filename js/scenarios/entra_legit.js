@@ -55,9 +55,9 @@ export const entraInteractiveSignInScenario = [
     action: () => addTemporaryEdge("ent_tenant", "ent_dev2", "oidc", "tokens issued"),
   },
   {
-    logMessage: "LAPTOP-02 → M365: GET /api/mail (Authorization: Bearer <access_token>). JWT claims: upn, tid, scp=Mail.Read, amr=[pwd,mfa], iat, exp. Signed with Entra RS256 key.",
-    logType: "http",
-    action: () => addTemporaryEdge("ent_dev2", "ent_m365", "http", "Bearer token"),
+    logMessage: "LAPTOP-02 → MS Graph: GET https://graph.microsoft.com/v1.0/me/messages (Authorization: Bearer <access_token>). JWT claims: upn, tid, scp=Mail.Read, amr=[pwd,mfa], iat, exp. Signed with Entra RS256 key.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_dev2", "ent_m365", "msgraph", "GET /me/messages"),
   },
   {
     logMessage: "M365: Validates token signature against Entra ID JWKS endpoint. Claims verified (audience, issuer, expiry, scopes). Access granted to Alice's mailbox.",
@@ -265,9 +265,9 @@ export const entraManagedIdentityScenario = [
     action: () => addTemporaryEdge("ent_mi", "ent_svc", "imds", "token returned"),
   },
   {
-    logMessage: "App → Key Vault: GET https://corp-kv.vault.azure.net/secrets/db-connstr?api-version=7.4 (Authorization: Bearer <MI_access_token>).",
-    logType: "http",
-    action: () => addTemporaryEdge("ent_svc", "ent_kv", "http", "GET /secrets/db-connstr"),
+    logMessage: "App → Key Vault: GET https://corp-kv.vault.azure.net/secrets/db-connstr?api-version=7.4 (Authorization: Bearer <MI_access_token>). Azure RBAC data-plane call — audience: vault.azure.net, enforced via Azure RBAC (not Entra app permissions).",
+    logType: "azurerm",
+    action: () => addTemporaryEdge("ent_svc", "ent_kv", "azurerm", "GET /secrets/db-connstr"),
   },
   {
     logMessage: "Key Vault: Validates JWT signature (public key from Entra JWKS). Checks claims: aud=vault.azure.net ✓ | iss=login.microsoftonline.com ✓ | exp ✓. Evaluates Azure RBAC: MI service principal has 'Key Vault Secrets User' role ✓.",

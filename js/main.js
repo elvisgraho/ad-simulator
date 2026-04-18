@@ -50,12 +50,22 @@ import {
   attackDSRMAbuseScenario, attackAdminSDHolderScenario,
 } from './scenarios/persistence.js';
 
-// Entra ID scenarios
+// Entra ID legitimate scenarios
 import {
   entraInteractiveSignInScenario, entraWHfBSignInScenario, entraPRTSSOScenario,
   entraConditionalAccessScenario, entraManagedIdentityScenario, entraPIMActivationScenario,
   entraTpmAttestationScenario, entraMacOSSSOScenario, entraPRTRotationScenario,
 } from './scenarios/entra_legit.js';
+
+// Entra ID attack scenarios
+import {
+  entraAzureHoundScenario, entraGraphEnumScenario,
+  entraPasswordSprayScenario, entraMFAFatigueScenario,
+  entraDeviceCodePhishingScenario, entraAITMScenario,
+  entraPassThePRTScenario, entraConsentPhishingScenario,
+  entraAppCredAbuseScenario, entraIMDSCredTheftScenario,
+  entraPIMTakeoverScenario, entraIllicitConsentScenario,
+} from './scenarios/entra_attacks.js';
 
 // Button → scenario mapping
 const SCENARIO_MAP = {
@@ -118,6 +128,7 @@ function bind(id, cb) {
 
 // Entra scenario map
 const ENTRA_SCENARIO_MAP = {
+  // Legitimate
   'btn-entra-interactive':   entraInteractiveSignInScenario,
   'btn-entra-whfb':          entraWHfBSignInScenario,
   'btn-entra-prt-sso':       entraPRTSSOScenario,
@@ -127,6 +138,23 @@ const ENTRA_SCENARIO_MAP = {
   'btn-entra-tpm-provision': entraTpmAttestationScenario,
   'btn-entra-prt-rotation':  entraPRTRotationScenario,
   'btn-entra-macos-sso':     entraMacOSSSOScenario,
+  // Enumeration
+  'btn-entra-azurehound':    entraAzureHoundScenario,
+  'btn-entra-graph-enum':    entraGraphEnumScenario,
+  // Initial Access
+  'btn-entra-spray':         entraPasswordSprayScenario,
+  'btn-entra-mfa-fatigue':   entraMFAFatigueScenario,
+  'btn-entra-devicecode':    entraDeviceCodePhishingScenario,
+  'btn-entra-aitm':          entraAITMScenario,
+  // Token & Session
+  'btn-entra-prt-theft':     entraPassThePRTScenario,
+  'btn-entra-consent-phish': entraConsentPhishingScenario,
+  // Privilege Escalation
+  'btn-entra-app-cred':      entraAppCredAbuseScenario,
+  'btn-entra-imds-theft':    entraIMDSCredTheftScenario,
+  'btn-entra-pim-takeover':  entraPIMTakeoverScenario,
+  // Persistence
+  'btn-entra-illicit-consent': entraIllicitConsentScenario,
 };
 
 // Wire all scenario buttons

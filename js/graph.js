@@ -92,6 +92,11 @@ const NODE_ICONS = {
     <ellipse cx="12" cy="6" rx="7" ry="2.5" stroke="#107c10" stroke-width="1.5" fill="none"/>
     <path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6" stroke="#107c10" stroke-width="1.5" fill="none"/>
     <line x1="5" y1="12" x2="19" y2="12" stroke="#107c10" stroke-width="1" stroke-dasharray="2 2"/>`),
+
+  // Azure ARM / data-plane resource (Key Vault, Storage, etc. — Azure RBAC enforced)
+  azurersc: svgIcon(`
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="#e86c00" stroke-width="1.5" fill="none"/>
+    <path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="#e86c00" stroke-width="1" stroke-dasharray="2 2"/>`),
 };
 
 export const initialElements = [
@@ -131,7 +136,7 @@ export const entraInitialElements = [
 
   // ── Resources ──
   { data: { id: 'ent_m365', name: 'M365 / Teams', type: 'entrarsc', url: 'https://teams.microsoft.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 650, y: 90 } },
-  { data: { id: 'ent_kv',   name: 'Key Vault',    type: 'entrarsc', url: 'https://corp-kv.vault.azure.net' }, classes: 'cy-node cy-node-entrarsc', position: { x: 760, y: 190 } },
+  { data: { id: 'ent_kv',   name: 'Key Vault',    type: 'azurersc', url: 'https://corp-kv.vault.azure.net' }, classes: 'cy-node cy-node-azurersc', position: { x: 760, y: 190 } },
 
   // ── Threat actor ──
   { data: { id: 'ent_attacker', name: 'Attacker', type: 'attacker', ip: '185.220.x.x' }, classes: 'cy-node cy-node-attacker', position: { x: 370, y: 450 } },
@@ -153,7 +158,7 @@ export function initializeCytoscape(elements) {
           'background-color': '#2d2d30',
           'border-width': 2, 'border-color': '#555',
           'background-image': (ele) => NODE_ICONS[ele.data('type')] || '',
-          'background-fit': 'contain',
+          'background-fit': 'none',
           'background-clip': 'none',
           'background-image-opacity': 0.92,
           'background-width': '68%',
@@ -224,6 +229,7 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',      width: '52px', height: '52px', 'background-color': '#160d2c', 'border-color': '#8764b8' } },
       { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
       { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },
+      { selector: '.cy-node-azurersc',   style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#1e0e00', 'border-color': '#e86c00' } },
 
       // ── Entra protocol edges ──
       { selector: '.oidc-edge',    style: { 'line-color': '#0078d4', 'target-arrow-color': '#0078d4', width: 2.5, 'z-index': 10 } },
@@ -231,6 +237,7 @@ export function initializeCytoscape(elements) {
       { selector: '.tpm-edge',     style: { 'line-color': '#f0a30a', 'target-arrow-color': '#f0a30a', width: 2.5, 'z-index': 11 } },
       { selector: '.msgraph-edge', style: { 'line-color': '#00b294', 'target-arrow-color': '#00b294', width: 2,   'z-index': 9  } },
       { selector: '.imds-edge',    style: { 'line-color': '#7a43b6', 'target-arrow-color': '#7a43b6', width: 2,   'line-style': 'dotted', 'z-index': 9 } },
+      { selector: '.azurerm-edge', style: { 'line-color': '#e86c00', 'target-arrow-color': '#e86c00', width: 2,   'line-style': 'dashed', 'z-index': 9 } },
     ],
     layout: { name: 'preset' },
   });
