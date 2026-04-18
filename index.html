@@ -30,7 +30,7 @@
             <i class="fas fa-server"></i> On-Prem AD
           </button>
           <button class="mode-btn" id="btn-mode-entra" data-mode="entra">
-            <i class="fab fa-microsoft"></i> Entra ID
+            <i class="fas fa-cloud"></i> Entra ID
           </button>
         </div>
         <div class="toggle-row">
@@ -304,6 +304,14 @@
               <i class="fas fa-play"></i> PIM Just-in-Time Role Activation
               <span class="req">PIM-eligible Global Admin</span>
             </button>
+            <button id="btn-entra-tpm-provision" class="btn cat-legit">
+              <i class="fas fa-play"></i> TPM 2.0 Key Attestation &amp; WHfB Enrollment
+              <span class="req">Entra-joined device with TPM 2.0</span>
+            </button>
+            <button id="btn-entra-macos-sso" class="btn cat-legit">
+              <i class="fas fa-play"></i> macOS Platform SSO (Secure Enclave)
+              <span class="req">Intune-enrolled Mac, PSSOe configured</span>
+            </button>
           </div>
         </details>
 
@@ -320,7 +328,7 @@
           <div class="legend-item"><div class="legend-shape legend-octagon"   style="border-color:#7a7a7a"></div>Service Acct</div>
           <div class="legend-item"><div class="legend-shape legend-rrect"     style="border-color:#0dcaf0"></div>Workstation</div>
           <div class="legend-item"><div class="legend-shape legend-rect"      style="border-color:#c586c0"></div>Server</div>
-          <div class="legend-item"><div class="legend-shape legend-vee"       style="border-color:#e03131"></div>Attacker</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon"   style="border-color:#e03131"></div>Attacker</div>
           <hr class="legend-sep" />
           <div class="legend-item"><div class="legend-line" style="background:#4dabf7"></div>Kerberos</div>
           <div class="legend-item"><div class="legend-line" style="background:#ffec99"></div>LDAP</div>
@@ -344,7 +352,7 @@
           <div class="legend-item"><div class="legend-shape legend-rrect"   style="border-color:#50e6ff"></div>Device (TPM)</div>
           <div class="legend-item"><div class="legend-shape legend-pentagon"style="background:#8764b8"></div>App Registration</div>
           <div class="legend-item"><div class="legend-shape legend-octagon" style="background:#00b294"></div>Managed Identity</div>
-          <div class="legend-item"><div class="legend-shape legend-vee"     style="background:#e03131"></div>Attacker</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon" style="border-color:#e03131"></div>Attacker</div>
           <hr class="legend-sep" />
           <div class="legend-item"><div class="legend-line" style="background:#0078d4"></div>OIDC / OAuth2</div>
           <div class="legend-item"><div class="legend-line" style="background:#50b4e8"></div>PRT</div>

@@ -54,6 +54,7 @@ import {
 import {
   entraInteractiveSignInScenario, entraWHfBSignInScenario, entraPRTSSOScenario,
   entraConditionalAccessScenario, entraManagedIdentityScenario, entraPIMActivationScenario,
+  entraTpmAttestationScenario, entraMacOSSSOScenario,
 } from './scenarios/entra_legit.js';
 
 // Button → scenario mapping
@@ -117,12 +118,14 @@ function bind(id, cb) {
 
 // Entra scenario map
 const ENTRA_SCENARIO_MAP = {
-  'btn-entra-interactive': entraInteractiveSignInScenario,
-  'btn-entra-whfb':        entraWHfBSignInScenario,
-  'btn-entra-prt-sso':     entraPRTSSOScenario,
-  'btn-entra-ca':          entraConditionalAccessScenario,
-  'btn-entra-mi':          entraManagedIdentityScenario,
-  'btn-entra-pim':         entraPIMActivationScenario,
+  'btn-entra-interactive':   entraInteractiveSignInScenario,
+  'btn-entra-whfb':          entraWHfBSignInScenario,
+  'btn-entra-prt-sso':       entraPRTSSOScenario,
+  'btn-entra-ca':            entraConditionalAccessScenario,
+  'btn-entra-mi':            entraManagedIdentityScenario,
+  'btn-entra-pim':           entraPIMActivationScenario,
+  'btn-entra-tpm-provision': entraTpmAttestationScenario,
+  'btn-entra-macos-sso':     entraMacOSSSOScenario,
 };
 
 // Wire all scenario buttons

@@ -27,7 +27,7 @@ const NODE_ICONS = {
   admin: svgIcon(`
     <circle cx="12" cy="11" r="3.5" stroke="#f44747" stroke-width="1.5"/>
     <path d="M5 21c0-3.5 3.1-6 7-6s7 2.5 7 6" stroke="#f44747" stroke-width="1.5"/>
-    <path d="M5 5.5l2.5 3.5L12 3.5l4.5 5.5L19 5.5" stroke="#f44747" stroke-width="1.5"/>`),
+    <path d="M5 5.5l2.5 3.5L12 3.5l4.5 5.5L19 5.5V8H5z" fill="#f44747"/>`),
 
   svc: svgIcon(`
     <circle cx="12" cy="12" r="3" stroke="#9e9e9e" stroke-width="1.5"/>
@@ -174,9 +174,9 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-user',     style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#091f14', 'border-color': '#4ec9b0' } },
       { selector: '.cy-node-admin',    style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#2a0606', 'border-color': '#f44747' } },
       { selector: '.cy-node-svc',      style: { shape: 'octagon',       width: '48px', height: '48px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a' } },
-      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0' } },
-      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0' } },
-      { selector: '.cy-node-attacker', style: { shape: 'vee',           width: '60px', height: '52px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
+      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '32px', 'background-height': '32px' } },
+      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-attacker', style: { shape: 'hexagon',       width: '60px', height: '60px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
       {
         selector: 'node.highlighted',
         style: { 'border-color': '#ffe066', 'border-width': 3, 'background-color': '#2d2900' },
@@ -215,7 +215,7 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-entra',       style: { shape: 'diamond',       width: '68px', height: '68px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5 } },
       { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#00182e', 'border-color': '#50b4e8' } },
       { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',       width: '56px', height: '56px', 'background-color': '#2a1400', 'border-color': '#ff8c00' } },
-      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff' } },
+      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '32px', 'background-height': '32px' } },
       { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',      width: '52px', height: '52px', 'background-color': '#160d2c', 'border-color': '#8764b8' } },
       { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
       { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },
@@ -237,6 +237,11 @@ export function initializeCytoscape(elements) {
     }
   });
   state.cy.nodes().grabify();
+
+  if (!state._resizeHandler) {
+    state._resizeHandler = () => { state.cy?.resize(); state.cy?.fit(undefined, 40); };
+    window.addEventListener('resize', state._resizeHandler);
+  }
 }
 
 export function highlightElement(id, duration = stepDelay * 0.8, className = 'highlighted') {
