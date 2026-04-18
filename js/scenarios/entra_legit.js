@@ -455,3 +455,63 @@ export const entraMacOSSSOScenario = [
     action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
   },
 ];
+
+// ── 9. Daily PRT Rotation via WHfB Biometric Re-auth ─────────────────────────
+export const entraPRTRotationScenario = [
+  {
+    scenarioName: "Daily PRT Rotation — WHfB Biometric Re-authentication",
+    logMessage: "Alice opens LAPTOP-01 (ent_dev1) Monday morning. Device was locked overnight. Cloud AP Plugin detects existing PRT in LSASS (3 days old, 11 days remaining). Interactive biometric gesture at wake → triggers PRT rotation: resets 14-day sliding window, rotates session key.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev1"); },
+  },
+  {
+    logMessage: "Windows Hello credential provider: fingerprint gesture received. TPM 2.0 PCR[7] policy evaluated (Secure Boot PCR values match enrollment state ✓). TPM unseals WHfB private key (RSA-2048) — key handle created inside TPM; private key never exposed to OS.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "Cloud AP Plugin → Entra ID: GET nonce (short-lived, cryptographically random, single-use — replay prevention for the upcoming rotation request).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "GET nonce"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: Encrypted nonce blob returned (nonce encrypted such that only the current session key holder can incorporate it into the signed request).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "nonce blob"),
+  },
+  {
+    logMessage: "Cloud AP Plugin: Two TPM operations in sequence. (1) HMAC-SHA256(current_session_key, nonce + request_params) — proves possession of existing valid PRT without transmitting it in cleartext. (2) RSA-2048 sign { kid: <WHfB_key_id>, sub: alice@corp, did: <device_id>, nonce, iat, exp } with WHfB private key — proves hardware binding.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "LAPTOP-01 → Entra ID: POST /oauth2/v2.0/token { grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, assertion=<WHfB-signed JWT>, request=<HMAC-signed PRT cookie>, refresh_token=<current PRT reference>, scope=openid+profile }.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "PRT rotation req"),
+  },
+  {
+    logMessage: "Entra ID validates in order. (1) PRT lookup: retrieves current PRT by reference, verifies session key HMAC over nonce ✓ — proves caller holds the session key, not just a stolen PRT blob. (2) WHfB assertion: fetches registered public key from device object, validates RSA-2048 signature ✓. Both checks must pass.",
+    logType: "prt",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID: CA re-evaluation for this rotation event — sign-in risk: None, device compliant ✓, interactive hardware re-auth → amr=ngcmfa. Current PRT is IMMEDIATELY INVALIDATED server-side (one-time-use rotation — replay-safe even if the rotation request was intercepted in transit).",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: 200 OK { new_prt: <opaque, 14-day TTL reset from now>, new_session_key: <RSA-OAEP encrypted with WHfB public key>, token_type: Bearer }. Old session key is now invalid server-side.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "new PRT + session key"),
+  },
+  {
+    logMessage: "TPM2_RSA_Decrypt (WHfB private key, OAEP): Unwraps new session key from ciphertext. New session key lives only in TPM and LSASS protected memory — never in plaintext on disk or accessible to userspace. Old PRT cookie and session key zeroed from LSASS.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "PRT rotation complete. Validity window reset to 14 days from now. All subsequent app SSO (Teams, SharePoint, Outlook via WAM) uses new PRT + new session key. Stolen PRT from this morning's LSASS dump is now a dead token — single-use rotation is the primary defense against pass-the-PRT attacks.",
+    logType: "success",
+    action: () => { highlightElement("ent_dev1"); highlightElement("ent_user1"); },
+  },
+];
