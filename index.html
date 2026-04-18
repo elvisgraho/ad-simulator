@@ -25,6 +25,14 @@
       <!-- Simulation Control -->
       <div class="ctrl-panel">
         <div class="ctrl-panel-title">Simulation Control</div>
+        <div class="mode-switch">
+          <button class="mode-btn mode-btn-active" id="btn-mode-ad" data-mode="ad">
+            <i class="fas fa-server"></i> On-Prem AD
+          </button>
+          <button class="mode-btn" id="btn-mode-entra" data-mode="entra">
+            <i class="fab fa-microsoft"></i> Entra ID
+          </button>
+        </div>
         <div class="toggle-row">
           <input type="checkbox" id="chk-manual-mode" />
           <label for="chk-manual-mode">Manual Step Mode</label>
@@ -41,8 +49,8 @@
         </div>
       </div>
 
-      <!-- Scenarios -->
-      <div class="scenario-buttons">
+      <!-- Scenarios: On-Prem AD -->
+      <div id="scenarios-ad" class="scenario-buttons">
 
         <details class="scenario-group" open>
           <summary><i class="fas fa-check-circle icon-legit"></i> Legitimate Actions</summary>
@@ -264,10 +272,45 @@
           </div>
         </details>
 
-      </div><!-- /.scenario-buttons -->
+      </div><!-- /#scenarios-ad -->
 
-      <!-- Legend -->
-      <div class="legend-panel">
+      <!-- Scenarios: Entra ID -->
+      <div id="scenarios-entra" class="scenario-buttons" style="display:none">
+
+        <details class="scenario-group" open>
+          <summary><i class="fas fa-check-circle icon-legit"></i> Legitimate Actions</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-interactive" class="btn cat-legit">
+              <i class="fas fa-play"></i> Interactive Sign-in (OAuth2 PKCE + MFA)
+              <span class="req">Cloud user, Entra-registered device</span>
+            </button>
+            <button id="btn-entra-whfb" class="btn cat-legit">
+              <i class="fas fa-play"></i> WHfB Sign-in (TPM 2.0-backed)
+              <span class="req">Entra-joined device with TPM 2.0</span>
+            </button>
+            <button id="btn-entra-prt-sso" class="btn cat-legit">
+              <i class="fas fa-play"></i> PRT Silent SSO via WAM
+              <span class="req">Entra-joined device, valid PRT</span>
+            </button>
+            <button id="btn-entra-ca" class="btn cat-legit">
+              <i class="fas fa-play"></i> Conditional Access — Device Compliance
+              <span class="req">Entra-registered (unmanaged) device</span>
+            </button>
+            <button id="btn-entra-mi" class="btn cat-legit">
+              <i class="fas fa-play"></i> Managed Identity → Key Vault
+              <span class="req">System-assigned MI on Azure workload</span>
+            </button>
+            <button id="btn-entra-pim" class="btn cat-legit">
+              <i class="fas fa-play"></i> PIM Just-in-Time Role Activation
+              <span class="req">PIM-eligible Global Admin</span>
+            </button>
+          </div>
+        </details>
+
+      </div><!-- /#scenarios-entra -->
+
+      <!-- Legend: On-Prem AD -->
+      <div id="legend-ad" class="legend-panel">
         <div class="ctrl-panel-title">Legend</div>
         <div class="legend-grid">
           <div class="legend-item"><div class="legend-shape legend-diamond"  style="border-color:#569cd6"></div>DC</div>
@@ -289,12 +332,41 @@
           <div class="legend-item"><div class="legend-line" style="background:#63e6be"></div>HTTP(S)</div>
           <div class="legend-item"><div class="legend-line" style="background:#e03131"></div>Attack Flow</div>
         </div>
-      </div>
+      </div><!-- /#legend-ad -->
+
+      <!-- Legend: Entra ID -->
+      <div id="legend-entra" class="legend-panel" style="display:none">
+        <div class="ctrl-panel-title">Legend — Entra ID</div>
+        <div class="legend-grid">
+          <div class="legend-item"><div class="legend-shape legend-diamond" style="border-color:#0078d4"></div>Entra Tenant</div>
+          <div class="legend-item"><div class="legend-shape legend-circle"  style="border-color:#50b4e8"></div>User</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon" style="background:#ff8c00"></div>Admin (PIM)</div>
+          <div class="legend-item"><div class="legend-shape legend-rrect"   style="border-color:#50e6ff"></div>Device (TPM)</div>
+          <div class="legend-item"><div class="legend-shape legend-pentagon"style="background:#8764b8"></div>App Registration</div>
+          <div class="legend-item"><div class="legend-shape legend-octagon" style="background:#00b294"></div>Managed Identity</div>
+          <div class="legend-item"><div class="legend-shape legend-vee"     style="background:#e03131"></div>Attacker</div>
+          <hr class="legend-sep" />
+          <div class="legend-item"><div class="legend-line" style="background:#0078d4"></div>OIDC / OAuth2</div>
+          <div class="legend-item"><div class="legend-line" style="background:#50b4e8"></div>PRT</div>
+          <div class="legend-item"><div class="legend-line" style="background:#f0a30a"></div>TPM</div>
+          <div class="legend-item"><div class="legend-line" style="background:#00b294"></div>MS Graph</div>
+          <div class="legend-item"><div class="legend-line" style="background:#7a43b6"></div>IMDS / MI</div>
+          <div class="legend-item"><div class="legend-line" style="background:#63e6be"></div>HTTP(S)</div>
+          <div class="legend-item"><div class="legend-line" style="background:#e03131"></div>Attack Flow</div>
+        </div>
+      </div><!-- /#legend-entra -->
 
     </div><!-- /#controls -->
 
     <div id="visualization-area">
-      <div id="cy"></div>
+      <div id="cy">
+        <div id="canvas-toolbar">
+          <button id="btn-fit-graph" class="canvas-btn" title="Fit graph to view">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div id="log-resize-handle"></div>
       <div id="log-area">
         <div id="log-header">
           <i class="fas fa-terminal"></i>

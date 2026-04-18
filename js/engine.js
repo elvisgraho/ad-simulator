@@ -1,6 +1,6 @@
 import { log } from './logger.js';
 import { state, stepDelay } from './state.js';
-import { initializeCytoscape, initialElements } from './graph.js';
+import { initializeCytoscape, initialElements, entraInitialElements } from './graph.js';
 
 const logContent       = document.getElementById('log-content');
 const manualModeChk    = document.getElementById('chk-manual-mode');
@@ -36,7 +36,7 @@ export function resetSimulationState(clearLog = true) {
     state.cy.nodes().removeClass('highlighted compromised');
     state.cy.nodes().removeScratch('_sim_highlighted');
   } else {
-    initializeCytoscape(initialElements);
+    initializeCytoscape(state.mode === 'entra' ? entraInitialElements : initialElements);
   }
   updateButtonStates();
   if (clearLog) log('Select a scenario to start.', 'info');
