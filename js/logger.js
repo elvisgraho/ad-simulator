@@ -23,6 +23,9 @@ export function log(message, type = 'info') {
     case 'tpm':      icon = '<i class="fas fa-microchip fa-fw me-1"></i>'; break;
     case 'msgraph':  icon = '<i class="fas fa-project-diagram fa-fw me-1"></i>'; break;
     case 'imds':     icon = '<i class="fas fa-cloud fa-fw me-1"></i>'; break;
+    case 'azurerm':  icon = '<i class="fas fa-cubes fa-fw me-1"></i>'; break;
+    case 'token':    icon = '<i class="fas fa-ticket-alt fa-fw me-1"></i>'; break;
+    case 'setup':    icon = '<i class="fas fa-cog fa-fw me-1"></i>'; break;
     default:
       icon = '<i class="fas fa-angle-right fa-fw me-1"></i>';
   }

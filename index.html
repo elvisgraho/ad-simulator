@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AD Network Simulation</title>
+  <link rel="icon" type="image/x-icon" href="media/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="media/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="media/favicon-16x16.png" />
   <link rel="stylesheet" href="lib/font-awesome.min.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="lib/cytoscape.min.js"></script>
@@ -319,6 +322,85 @@
           </div>
         </details>
 
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-binoculars icon-enum"></i> Enumeration &amp; Discovery</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-azurehound" class="btn cat-enum">
+              <i class="fas fa-play"></i> AzureHound / BloodHound Enum
+              <span class="req">Any valid tenant user credential</span>
+            </button>
+            <button id="btn-entra-graph-enum" class="btn cat-enum">
+              <i class="fas fa-play"></i> Graph API Targeted Recon
+              <span class="req">Any valid tenant user credential</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-key icon-cred"></i> Initial Access &amp; Credential Attacks</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-spray" class="btn cat-cred">
+              <i class="fas fa-play"></i> Password Spray (Smart Lockout Evasion)
+              <span class="req">Direct attack — no account required</span>
+            </button>
+            <button id="btn-entra-mfa-fatigue" class="btn cat-cred">
+              <i class="fas fa-play"></i> MFA Fatigue / Push Bombing
+              <span class="req">Requires valid password, no number matching</span>
+            </button>
+            <button id="btn-entra-devicecode" class="btn cat-cred">
+              <i class="fas fa-play"></i> Device Code Phishing (OAuth2)
+              <span class="req">Direct attack — no account required</span>
+            </button>
+            <button id="btn-entra-aitm" class="btn cat-cred">
+              <i class="fas fa-play"></i> AITM via Evilginx2 (Token Capture)
+              <span class="req">Requires network position / phishing delivery</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-ticket-alt icon-token"></i> Token &amp; Session Attacks</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-prt-theft" class="btn cat-token">
+              <i class="fas fa-play"></i> Pass-the-PRT (LSASS → Token Replay)
+              <span class="req">Requires SYSTEM on Entra-joined device</span>
+            </button>
+            <button id="btn-entra-consent-phish" class="btn cat-token">
+              <i class="fas fa-play"></i> Consent Phishing (Malicious OAuth2 App)
+              <span class="req">Requires admin consent or user consent</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-user-secret icon-priv"></i> Privilege Escalation</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-app-cred" class="btn cat-priv">
+              <i class="fas fa-play"></i> Add Credentials to App Reg (SP Backdoor)
+              <span class="req">Requires Application Administrator role</span>
+            </button>
+            <button id="btn-entra-imds-theft" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> IMDS Credential Theft (SSRF / RCE)
+              <span class="req">Requires RCE or SSRF on Azure workload</span>
+            </button>
+            <button id="btn-entra-pim-takeover" class="btn cat-priv">
+              <i class="fas fa-play"></i> PIM Takeover → Global Admin Escalation
+              <span class="req">Requires compromised PIM-eligible account</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-crown icon-domain"></i> Persistence &amp; Impact</summary>
+          <div class="scenario-group-body">
+            <button id="btn-entra-illicit-consent" class="btn cat-domain">
+              <i class="fas fa-play"></i> Illicit Consent Grant (Tenant-Wide App)
+              <span class="req">Requires user / admin consent</span>
+            </button>
+          </div>
+        </details>
+
       </div><!-- /#scenarios-entra -->
 
       <!-- Legend: On-Prem AD -->
@@ -356,12 +438,15 @@
           <div class="legend-item"><div class="legend-shape legend-rrect"   style="border-color:#50e6ff"></div>Device (TPM)</div>
           <div class="legend-item"><div class="legend-shape legend-pentagon"style="background:#8764b8"></div>App Registration</div>
           <div class="legend-item"><div class="legend-shape legend-octagon" style="background:#00b294"></div>Managed Identity</div>
-          <div class="legend-item"><div class="legend-shape legend-hexagon" style="border-color:#e03131"></div>Attacker</div>
+          <div class="legend-item"><div class="legend-shape legend-rect"    style="border-color:#107c10"></div>M365 / Graph Rsrc</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon" style="background:#e86c00"></div>Azure ARM Rsrc</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon" style="background:#e03131"></div>Attacker</div>
           <hr class="legend-sep" />
-          <div class="legend-item"><div class="legend-line" style="background:#0078d4"></div>OIDC / OAuth2</div>
+          <div class="legend-item"><div class="legend-line" style="background:#0078d4"></div>OIDC / OAuth2 (Entra)</div>
           <div class="legend-item"><div class="legend-line" style="background:#50b4e8"></div>PRT</div>
-          <div class="legend-item"><div class="legend-line" style="background:#f0a30a"></div>TPM</div>
-          <div class="legend-item"><div class="legend-line" style="background:#00b294"></div>MS Graph</div>
+          <div class="legend-item"><div class="legend-line" style="background:#f0a30a"></div>TPM / SEP</div>
+          <div class="legend-item"><div class="legend-line" style="background:#00b294"></div>MS Graph API</div>
+          <div class="legend-item"><div class="legend-line" style="background:#e86c00"></div>Azure ARM / RBAC</div>
           <div class="legend-item"><div class="legend-line" style="background:#7a43b6"></div>IMDS / MI</div>
           <div class="legend-item"><div class="legend-line" style="background:#63e6be"></div>HTTP(S)</div>
           <div class="legend-item"><div class="legend-line" style="background:#e03131"></div>Attack Flow</div>
