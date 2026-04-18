@@ -335,3 +335,123 @@ export const entraPIMActivationScenario = [
     action: () => { highlightElement("ent_admin"); highlightElement("ent_tenant"); },
   },
 ];
+
+// ── 7. TPM 2.0 Key Attestation & WHfB Provisioning ───────────────────────────
+export const entraTpmAttestationScenario = [
+  {
+    scenarioName: "TPM 2.0 Key Attestation — WHfB Provisioning",
+    logMessage: "LAPTOP-01 (ent_dev1) has just completed Entra ID join. WHfB provisioning is triggered post-join for Alice. LAPTOP-01 has TPM 2.0 (firmware TPM via UEFI). Goal: generate and register a hardware-bound WHfB signing key with Entra ID.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev1"); },
+  },
+  {
+    logMessage: "Windows Provisioning: TPM2_CreatePrimary (Storage Root Key, SRK, hierarchy=Owner). TPM2_Create (WHfB auth key under SRK — RSA-2048, key attributes: fixedTPM=1 (non-exportable), fixedParent=1, sign=1, userWithAuth=1, policy=PCR[7]+AuthValue). Private key material generated inside TPM, never exposed.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "TPM 2.0: TPM2_Certify — Attestation Identity Key (AIK, derived under Endorsement Key hierarchy) signs a TPM2B_ATTEST structure containing the WHfB key's name (hash of public area). This cryptographically proves the WHfB key was created inside this specific TPM hardware.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "Windows: Queries TPM for EK certificate (manufacturer-issued cert, embedded in TPM NVRAM, signed by Infineon/STMicro/Nuvoton CA). EK identifies the specific TPM hardware globally. AIK cert chain built: EK → Privacy CA → AIK.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "LAPTOP-01 → Entra ID: POST /devices/{deviceId}/registeredKeys { attestationStatement: 'TPM20', keyType: 'RSA2048', usage: 'NGC', aikCert: <AIK chain PEM>, creationData: <TPM2B_CREATION_DATA (PCR digest, clock, firmware version)>, certifyInfo: <TPM2B_ATTEST>, certifyInfoSignature: <AIK-signed ECDSA-256 quote over certifyInfo> }.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "tpm", "WHfB key reg + attestation"),
+  },
+  {
+    logMessage: "Entra ID → Microsoft Azure Attestation (MAA): Validates attestation chain. EK certificate verifies against TPM manufacturer trusted CA root ✓. AIK signature over TPM2B_ATTEST valid ✓. creationData.objectAttributes confirms fixedTPM=1, sign=1, sensitiveDataOrigin=1 ✓. PCR[7] digest: Secure Boot enforcement active ✓.",
+    logType: "tpm",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID: Attestation verified. Device health report: TPM present, hardware-backed key, Secure Boot enforced. Stores WHfB RSA-2048 public key on Alice's user object (keyCredential attribute). Sets keyStrength=NORMAL, attestationLevel=attested.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → LAPTOP-01: 201 Created { activationBlob: <encrypted activation nonce, wrapped with WHfB public key> }. Only the TPM private key can decrypt this — confirms the key was never exported (round-trip proof of possession).",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "tpm", "key registered"),
+  },
+  {
+    logMessage: "TPM2_RSA_Decrypt (WHfB private key) → activationBlob decrypted. Proof-of-possession confirmed. WHfB provisioning complete. attestationLevel=attested grants access to CA policies requiring hardware-bound credentials. LAPTOP-01 now satisfies 'Require compliant TPM 2.0 device' Conditional Access rules.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "WHfB enrollment complete. All future sign-ins use this TPM-bound key (see 'WHfB Sign-in' scenario). Hardware attestation differentiates this device from software-credential-only devices — enables stricter CA policy grants for sensitive resources.",
+    logType: "success",
+    action: () => { highlightElement("ent_dev1"); highlightElement("ent_user1"); },
+  },
+];
+
+// ── 8. macOS Platform SSO — Secure Enclave-backed ────────────────────────────
+export const entraMacOSSSOScenario = [
+  {
+    scenarioName: "macOS Platform SSO — Secure Enclave-backed Sign-in",
+    logMessage: "LAPTOP-01 (ent_dev1, treated as macOS 14 Sonoma, Intune-enrolled). Microsoft Enterprise SSO Plugin (PSSOe / com.microsoft.CompanyPortalMac.ssoextension) deployed via Intune MDM profile. Secure Enclave device key registered with Entra ID during enrollment. Alice uses Touch ID at macOS login.",
+    logType: "info",
+    action: () => { highlightElement("ent_user1"); highlightElement("ent_dev1"); },
+  },
+  {
+    logMessage: "macOS Secure Enclave Processor (SEP): Touch ID biometric evaluated entirely within SEP silicon — fingerprint template never accessible to Application Processor or OS kernel. SEP returns local auth success → unseals Platform SSO private key (EC P-256, generated in SEP, non-exportable). Equivalent to TPM 2.0 on Windows.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "Platform SSO Extension (PSSOe): Detects no valid Entra PRT in macOS Keychain (SEP-protected ACL entry). Initiates device assertion flow using SEP-bound device identity key (provisioned at Intune enrollment via MDM SCEP + Apple CryptoTokenKit).",
+    logType: "prt",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "PSSOe: Constructs device assertion JWT { alg: ES256, kid: <SEP_device_key_id> } / { sub: alice@corp.onmicrosoft.com, device_id: <entraDeviceId>, iss: <client_id>, iat, exp, nonce }. SEP performs ECDSA-P256 signing — key material never leaves Secure Enclave boundary.",
+    logType: "tpm",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "tpm", "SEP Sign(device key)"),
+  },
+  {
+    logMessage: "PSSOe → Entra ID: POST /oauth2/v2.0/token { grant_type=urn:ietf:params:oauth:grant-type:device-sso, device_assertion=<SEP-signed JWT>, client_id, scope=openid+profile+offline_access }.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "Platform SSO req"),
+  },
+  {
+    logMessage: "Entra ID: Resolves device_id → fetches Entra device object (macOS, Intune-compliant: FileVault=enabled, Gatekeeper=enforced, min OS=14 ✓). Retrieves registered SEP public key (EC P-256, enrolled via Intune SCEP). Validates ES256 assertion signature ✓.",
+    logType: "prt",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID: CA policy evaluation. Sign-in risk: None (device-bound hardware key, no password transmitted). Device compliance (Intune): macOS compliant ✓. Hybrid join / Entra join check: device registered ✓. Authentication strength: hardware-backed SSO — satisfies MFA requirement (SEP = 'something you have', Touch ID = 'something you are').",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "Entra ID → PSSOe: Issues PRT (opaque, 14-day TTL, device+user bound) + session key encrypted with device SEP public key (EC P-256 ECDH key wrap). Only the SEP-bound device private key can unwrap the session key.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "prt", "PRT + session key"),
+  },
+  {
+    logMessage: "PSSOe stores PRT in macOS Keychain item protected by SEP ACL (kSecAttrAccessControl: biometryAny + devicePasscode). Unlike Windows LSASS, the Keychain SEP ACL blocks access from unauthorized processes even with root privileges or kernel extension bypass.",
+    logType: "tpm",
+    action: () => highlightElement("ent_dev1"),
+  },
+  {
+    logMessage: "Alice opens Microsoft Teams on Mac. PSSOe intercepts token acquisition (via macOS Network Extension + ASWebAuthenticationSession SSO extension hook). Uses SEP to HMAC-sign PRT cookie with session key (decrypted by SEP). Sends signed PRT cookie to Entra ID.",
+    logType: "prt",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "prt", "SSO token req"),
+  },
+  {
+    logMessage: "Entra ID: Validates PRT + session key HMAC. Issues scoped access_token (1h, scp=Teams). amr claim: ['hwsso'] — hardware SSO via Platform SSO. No password prompt, no Authenticator push — fully silent authentication.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "oidc", "access_token (hwsso)"),
+  },
+  {
+    logMessage: "LAPTOP-01 → M365: GET /api/teams (Bearer <access_token>). M365 validates JWT amr=hwsso — hardware-backed session, satisfies Conditional Access grant controls for sensitive resources. Teams workspace rendered. macOS Platform SSO provides equivalent security posture to WHfB on Windows.",
+    logType: "success",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
+  },
+];
