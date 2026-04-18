@@ -518,7 +518,7 @@ export const attackESC8Scenario = [
   },
   {
     logMessage:
-      "ESC8 SUCCESSFUL: Attacker relayed DC authentication to obtain a certificate for the DC machine account. Can potentially use this for Shadow Credentials (ESC10) or RBCD attacks.",
+      "ESC8 SUCCESSFUL: Attacker relayed DC authentication to obtain a certificate for the DC machine account (DC01$). Can use this certificate for PKINIT as DC01$ to obtain its TGT, then perform DCSync or RBCD-based privilege escalation.",
     logType: "success",
   },
 ];

@@ -64,7 +64,7 @@ export const attackDCSyncScenario = [
 export const attackSQLAccessScenario = [
   {
     scenarioName: "Attack: SQL Access (Post-Roast)",
-    logMessage: "Prerequisite: Attacker previously Kerberoasted SPN 'MSSQLSvc/sql01.domain.com' associated with 'svc_sql01' account and cracked its password/hash.",
+    logMessage: "Prerequisite: Attacker previously Kerberoasted SPN 'MSSQLSvc/sql01.corp.local:1433' associated with 'svc_sql01' account and cracked its password/hash.",
     logType: "setup",
     action: () => {
       highlightElement("attacker");
@@ -82,7 +82,7 @@ export const attackSQLAccessScenario = [
     action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (TGT)"),
   },
   {
-    logMessage: "Attacker -> DC01: Kerberos TGS-REQ (Using TGT, Request ST for SPN 'MSSQLSvc/sql01.domain.com')",
+    logMessage: "Attacker -> DC01: Kerberos TGS-REQ (Using TGT, Request ST for SPN 'MSSQLSvc/sql01.corp.local:1433')",
     logType: "kerberos",
     action: () => addTemporaryEdge("attacker", "dc01", "Kerberos", "TGS-REQ (SQL SPN)"),
   },
@@ -472,7 +472,7 @@ export const attackAdminSDHolderScenario = [
       "DC01 (SDProp Process) -> DC01: LDAP Modify (Overwrites the ACLs of protected objects like the 'Domain Admins' group with the ACL from AdminSDHolder, including the attacker's ACE). Inheritance is disabled.",
     logType: "system", // Automatic ACL propagation by the system
     action: () => {
-      highlightElement("domain_admins_group", stepDelay, "highlighted"); // ACL overwritten
+      highlightElement("admin1", stepDelay, "highlighted"); // Protected objects (DA group, etc.) get ACL overwritten
       // Attacker's controlled user now implicitly has rights ON the DA group
     }
   },

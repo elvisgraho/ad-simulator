@@ -18,56 +18,55 @@ export const attackPasswordSprayScenario = [
   },
   {
     logMessage:
-      "Attacker -> DC01: Kerberos AS-REQ for User1 with guessed password 'admin12345'. (No valid TGT expected initially).",
+      "Attacker -> DC01: Kerberos AS-REQ for Bob (user2) with spray password 'Winter2024'. (No valid TGT expected initially).",
     logType: "attack",
     action: () =>
       addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U1)"),
   },
   {
     logMessage:
-      "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for User1).",
-    logType: "kerberos", // Indicates username is valid, password is not
+      "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for Bob).",
+    logType: "kerberos",
     action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error (Bad Pwd)"),
   },
   {
     logMessage:
-      "Attacker -> DC01: Kerberos AS-REQ for User2 with guessed password 'Company123'.",
+      "Attacker -> DC01: Kerberos AS-REQ for DomainAdmin (admin1) with same spray password 'Winter2024'.",
     logType: "attack",
     action: () =>
       addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U2)"),
   },
   {
     logMessage:
-      "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for User2).",
+      "DC01 -> Attacker: Kerberos Error (KRB5KDC_ERR_PREAUTH_FAILED - Incorrect password for DomainAdmin).",
     logType: "kerberos",
     action: () => addTemporaryEdge("dc01", "attacker", "Kerberos", "Error (Bad Pwd)"),
   },
   {
-    // ... Attacker continues spraying the same password against other users ...
     logMessage:
-      "Attacker -> DC01: Kerberos AS-REQ for User3 (user1) with guessed password 'Winter2024'.",
+      "Attacker -> DC01: Kerberos AS-REQ for Alice (user1) with same spray password 'Winter2024'.",
     logType: "attack",
     action: () =>
       addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (Spray U3)"),
   },
   {
     logMessage:
-      "DC01: Validates pre-authentication using user1's hash and the provided password ('Winter2024'). It matches!",
+      "DC01: Validates pre-authentication using Alice's hash and the provided password ('Winter2024'). It matches!",
     logType: "kerberos",
     action: () => highlightElement("dc01"),
   },
   {
     logMessage:
-      "DC01 -> Attacker: Kerberos AS-REP (Success! Password 'Winter2024' is valid for user1). TGT for user1 is issued.",
+      "DC01 -> Attacker: Kerberos AS-REP (Success! Password 'Winter2024' is valid for Alice/user1). TGT for user1 is issued.",
     logType: "success",
     action: () => {
-      highlightElement("user1", stepDelay, "compromised"); // Mark user as compromised
+      highlightElement("user1", stepDelay, "compromised");
       addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (Success!)");
     },
   },
   {
     logMessage:
-      "IMPACT: Attacker identified valid credentials (user1:Winter2024) without triggering immediate lockouts. Can now authenticate as user1, access resources they have permissions for, and potentially perform further attacks (like Kerberoasting).",
+      "IMPACT: Attacker identified valid credentials (Alice:Winter2024) by spraying one password across many accounts, staying below per-account lockout thresholds. Can now authenticate as user1 and perform further attacks (e.g., Kerberoasting).",
     logType: "success",
   },
 ];
@@ -84,7 +83,7 @@ export const attackKerberoastingScenario = [
     logMessage:
       "Prerequisite: Attacker has compromised *any* valid domain user account credentials (low privilege is sufficient). Let's assume attacker controls 'userX'.",
     logType: "info",
-    action: () => highlightElement("userX", stepDelay, "compromised"), // Represents any low-priv user
+    action: () => highlightElement("user2", stepDelay, "compromised"), // Bob represents any low-priv user
   },
   {
     logMessage:
@@ -175,25 +174,25 @@ export const attackASREPRoastingScenario = [
     logMessage:
       "Attacker: Identifies or guesses a target username (e.g., 'svc_backup') known or suspected to have pre-authentication disabled.",
     logType: "info",
-    action: () => highlightElement("svc_backup"), // Example target user
+    action: () => highlightElement("svc_nopreauth"), // Target user with pre-auth disabled
   },
   {
     logMessage:
-      "Attacker -> DC01: Kerberos AS-REQ for the target user ('svc_backup'). Critically, the request does NOT include any pre-authentication data (encrypted timestamp).",
+      "Attacker -> DC01: Kerberos AS-REQ for the target user ('svc_nopreauth'). Critically, the request does NOT include any pre-authentication data (encrypted timestamp).",
     logType: "attack",
     action: () =>
       addTemporaryEdge("attacker", "dc01", "Kerberos", "AS-REQ (NoPreAuth Data)"),
   },
   {
     logMessage:
-      "DC01: Finds the user account 'svc_backup'. Checks its 'userAccountControl' attribute. Sees the DONT_REQ_PREAUTH flag is TRUE. Therefore, it skips the pre-authentication validation step.",
+      "DC01: Finds the user account 'svc_nopreauth'. Checks its 'userAccountControl' attribute. Sees the DONT_REQ_PREAUTH flag is TRUE. Therefore, it skips the pre-authentication validation step.",
     logType: "kerberos",
     action: () => highlightElement("dc01"),
   },
   {
     logMessage:
-      "DC01 -> Attacker: Kerberos AS-REP (Sending the TGT response). Because pre-auth was skipped, this AS-REP contains a portion encrypted with the *target user's ('svc_backup')* NTLM hash.",
-    logType: "kerberos", // DC sends encrypted ticket as user doesn't require pre-auth
+      "DC01 -> Attacker: Kerberos AS-REP (Sending the TGT response). Because pre-auth was skipped, this AS-REP contains a portion encrypted with the *target user's ('svc_nopreauth')* NTLM hash.",
+    logType: "kerberos",
     action: () =>
       addTemporaryEdge("dc01", "attacker", "Kerberos", "AS-REP (Encrypted TGT Part)"),
   },
@@ -206,18 +205,18 @@ export const attackASREPRoastingScenario = [
   {
     logMessage:
       "Attacker: Performs OFFLINE password cracking (e.g., Hashcat mode 18200) against the extracted encrypted blob using password lists/rules.",
-    logType: "attack", // Offline computation
+    logType: "attack",
     action: () => highlightElement("attacker"),
   },
   {
     logMessage:
-      "Attacker: Successfully cracks the hash, revealing the plaintext password for the 'svc_backup' user account.",
+      "Attacker: Successfully cracks the hash, revealing the plaintext password for the 'svc_nopreauth' user account.",
     logType: "success",
-    action: () => highlightElement("svc_backup", stepDelay, "compromised"),
+    action: () => highlightElement("svc_nopreauth", stepDelay, "compromised"),
   },
   {
     logMessage:
-      "IMPACT: Attacker obtained the password for a user ('svc_backup') without needing any prior credentials, solely by exploiting disabled pre-authentication. Allows authentication as this user, access to their resources, and potential further actions.",
+      "IMPACT: Attacker obtained the password for a user ('svc_nopreauth') without needing any prior credentials, solely by exploiting disabled pre-authentication. Allows authentication as this user, access to their resources, and potential further actions.",
     logType: "success",
   },
 ];
@@ -277,19 +276,19 @@ export const attackNTLMRelayScenario = [
   },
   // --- Post-Relay Action (Example: AD CS Abuse) ---
   {
-    logMessage: "Attacker (relayed as host1$) -> AD CS Server: HTTP Request (Request certificate via Web Enrollment)",
-    logType: "http", // Assumes ADCS server element exists
-    action: () => addTemporaryEdge("attacker", "adcs_server", "HTTP", "Cert Request (Relayed)"),
-  },
-  {
-    logMessage: "AD CS Server: Issues certificate for 'host1$'.",
-    logType: "internal",
-    action: () => highlightElement("adcs_server"),
-  },
-  {
-    logMessage: "AD CS Server -> Attacker: HTTP Response (Certificate Download)",
+    logMessage: "Attacker (relayed as host1$) -> CA01 (/certsrv): HTTP Request (Request certificate via AD CS Web Enrollment)",
     logType: "http",
-    action: () => addTemporaryEdge("adcs_server", "attacker", "HTTP", "Cert Download"),
+    action: () => addTemporaryEdge("attacker", "ca01", "HTTP", "Cert Request (Relayed)"),
+  },
+  {
+    logMessage: "CA01: Issues certificate for 'host1$'.",
+    logType: "internal",
+    action: () => highlightElement("ca01"),
+  },
+  {
+    logMessage: "CA01 -> Attacker: HTTP Response (Certificate Download)",
+    logType: "http",
+    action: () => addTemporaryEdge("ca01", "attacker", "HTTP", "Cert Download"),
   },
   {
     logMessage: "Attacker: Obtains certificate for 'host1$', can now authenticate as machine.",
@@ -315,9 +314,9 @@ export const attackLLMNRPoisoningScenario = [
     action: () => highlightElement("user1"),
   },
   {
-    logMessage: "User (user1) -> Network: Broadcasts LLMNR/NBT-NS Query for 'fileshar'",
-    logType: "llmnr_nbtns", // Combined type
-    action: () => addTemporaryEdge("user1", "network", "LLMNR/NBT-NS", "Query"), // network is conceptual here
+    logMessage: "User (user1) -> Network: Broadcasts LLMNR/NBT-NS Query for 'fileshar' (multicast/broadcast - no direct target node)",
+    logType: "llmnr_nbtns",
+    action: () => highlightElement("user1"),
   },
   {
     logMessage: "Attacker -> User (user1): LLMNR/NBT-NS Spoofed Response ('fileshar' is at Attacker's IP)",
@@ -369,8 +368,7 @@ export const attackPetitPotamScenario = [
     action: () => highlightElement("attacker"), // Optionally highlight relay target too
   },
   {
-    scenarioName: "Attack: PetitPotam",
-    logMessage: "Attacker targets DC01's EFS service",
+    logMessage: "Attacker targets DC01's EFS service (MS-EFSRPC) to coerce NTLM authentication",
     logType: "attack",
     action: () => {
       highlightElement("attacker");

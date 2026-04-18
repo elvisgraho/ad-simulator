@@ -1,6 +1,58 @@
 import { log } from './logger.js';
 import { state, stepDelay } from './state.js';
 
+function svgIcon(innerPaths) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
+  )}`;
+}
+
+const NODE_ICONS = {
+  dc: svgIcon(`
+    <rect x="2" y="3" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="2" y="10" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="2" y="17" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <circle cx="19" cy="5.5" r="1" fill="#569cd6"/>
+    <circle cx="19" cy="12.5" r="1" fill="#569cd6"/>
+    <circle cx="19" cy="19.5" r="1" fill="#569cd6"/>`),
+
+  ca: svgIcon(`
+    <path d="M12 2L4 5v6c0 5.5 3.5 10.5 8 12 4.5-1.5 8-6.5 8-12V5L12 2z" stroke="#dcdcaa" stroke-width="1.5"/>
+    <path d="M9 12l2 2 4-4" stroke="#dcdcaa" stroke-width="1.5"/>`),
+
+  user: svgIcon(`
+    <circle cx="12" cy="8" r="4" stroke="#4ec9b0" stroke-width="1.5"/>
+    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#4ec9b0" stroke-width="1.5"/>`),
+
+  admin: svgIcon(`
+    <circle cx="12" cy="11" r="3.5" stroke="#f44747" stroke-width="1.5"/>
+    <path d="M5 21c0-3.5 3.1-6 7-6s7 2.5 7 6" stroke="#f44747" stroke-width="1.5"/>
+    <path d="M5 5.5l2.5 3.5L12 3.5l4.5 5.5L19 5.5" stroke="#f44747" stroke-width="1.5"/>`),
+
+  svc: svgIcon(`
+    <circle cx="12" cy="12" r="3" stroke="#9e9e9e" stroke-width="1.5"/>
+    <path d="M12 2v2.5M12 19.5V22M4.22 4.22l1.77 1.77M18.01 18.01l1.77 1.77M2 12h2.5M19.5 12H22M4.22 19.78l1.77-1.77M18.01 5.99l1.77-1.77" stroke="#9e9e9e" stroke-width="1.5"/>`),
+
+  host: svgIcon(`
+    <rect x="3" y="4" width="18" height="13" rx="1" stroke="#0dcaf0" stroke-width="1.5"/>
+    <path d="M3 21h18" stroke="#0dcaf0" stroke-width="1.5"/>
+    <line x1="12" y1="17" x2="12" y2="21" stroke="#0dcaf0" stroke-width="1.5"/>`),
+
+  server: svgIcon(`
+    <rect x="4" y="2" width="16" height="9" rx="1" stroke="#c586c0" stroke-width="1.5"/>
+    <rect x="4" y="13" width="16" height="9" rx="1" stroke="#c586c0" stroke-width="1.5"/>
+    <circle cx="7.5" cy="6.5" r="1" fill="#c586c0"/>
+    <circle cx="7.5" cy="17.5" r="1" fill="#c586c0"/>
+    <line x1="11" y1="6.5" x2="17" y2="6.5" stroke="#c586c0" stroke-width="1.5"/>
+    <line x1="11" y1="17.5" x2="17" y2="17.5" stroke="#c586c0" stroke-width="1.5"/>`),
+
+  attacker: svgIcon(`
+    <path d="M12 3a8 8 0 0 1 8 8c0 2.8-1.4 5.3-3.5 6.8v2.2a1 1 0 0 1-1 1H8.5a1 1 0 0 1-1-1v-2.2C5.4 16.3 4 13.8 4 11a8 8 0 0 1 8-8z" stroke="#e03131" stroke-width="1.5"/>
+    <circle cx="9.5" cy="11" r="1.5" fill="#e03131"/>
+    <circle cx="14.5" cy="11" r="1.5" fill="#e03131"/>
+    <path d="M9 20h2v-2.5h2V20h2" stroke="#e03131" stroke-width="1.5"/>`),
+};
+
 export const initialElements = [
   { data: { id: 'dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 450, y: 100 } },
   { data: { id: 'ca01', name: 'CA01', type: 'ca', fqdn: 'ca01.corp.local', ip: '10.1.1.20' }, classes: 'cy-node cy-node-ca', position: { x: 600, y: 150 } },
@@ -29,49 +81,56 @@ export function initializeCytoscape(elements) {
       {
         selector: 'node',
         style: {
-          width: '60px', height: '60px',
+          width: '52px', height: '52px',
+          shape: 'ellipse',
           'background-color': '#2d2d30',
           'border-width': 2, 'border-color': '#555',
-          label: (ele) => {
-            const detail = ele.data('fqdn') || ele.data('sam') || '';
-            const icons = { dc: '💾', ca: '📜', user: '👤', admin: '👑', svc: '⚙️', host: '💻', server: '🏢', attacker: '💀' };
-            return `${icons[ele.data('type')] || '❓'}\n${detail}`;
-          },
-          'text-wrap': 'wrap', 'text-max-width': '80px', 'text-margin-y': 20,
-          'font-size': '18px', color: '#cccccc',
-          'text-outline-color': '#181818', 'text-outline-width': 2,
-          'line-height': 1.1, padding: '0px',
-          'text-valign': 'center', 'text-halign': 'center',
+          'background-image': (ele) => NODE_ICONS[ele.data('type')] || '',
+          'background-fit': 'contain',
+          'background-clip': 'none',
+          'background-image-opacity': 0.92,
+          'background-width': '68%',
+          'background-height': '68%',
+          label: (ele) => ele.data('name'),
+          'text-valign': 'bottom',
+          'text-halign': 'center',
+          'text-margin-y': 6,
+          'font-size': '11px',
+          color: '#cccccc',
+          'text-outline-color': '#181818',
+          'text-outline-width': 2,
         },
       },
-      { selector: '.cy-node-dc',       style: { 'background-color': '#0d2847', 'border-color': '#569cd6' } },
-      { selector: '.cy-node-ca',       style: { 'background-color': '#2d2200', 'border-color': '#dcdcaa' } },
-      { selector: '.cy-node-user',     style: { 'background-color': '#0d2117', 'border-color': '#4ec9b0' } },
-      { selector: '.cy-node-admin',    style: { 'background-color': '#2d0808', 'border-color': '#f44747' } },
-      { selector: '.cy-node-svc',      style: { 'background-color': '#252526', 'border-color': '#6e6e6e' } },
-      { selector: '.cy-node-host',     style: { 'background-color': '#002728', 'border-color': '#0dcaf0' } },
-      { selector: '.cy-node-server',   style: { 'background-color': '#1e1033', 'border-color': '#c586c0' } },
-      { selector: '.cy-node-attacker', style: { 'background-color': '#2d0000', 'border-color': '#e03131' } },
+      // Each type gets a distinct shape + color so nodes are recognizable at a glance
+      { selector: '.cy-node-dc',       style: { shape: 'diamond',       width: '64px', height: '64px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5 } },
+      { selector: '.cy-node-ca',       style: { shape: 'pentagon',      width: '54px', height: '54px', 'background-color': '#271e00', 'border-color': '#dcdcaa' } },
+      { selector: '.cy-node-user',     style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#091f14', 'border-color': '#4ec9b0' } },
+      { selector: '.cy-node-admin',    style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#2a0606', 'border-color': '#f44747' } },
+      { selector: '.cy-node-svc',      style: { shape: 'octagon',       width: '48px', height: '48px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a' } },
+      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0' } },
+      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0' } },
+      { selector: '.cy-node-attacker', style: { shape: 'vee',           width: '60px', height: '52px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
       {
         selector: 'node.highlighted',
-        style: { 'border-color': '#dcdcaa', 'border-width': 4, shape: 'ellipse', 'background-color': '#2d2900' },
+        style: { 'border-color': '#ffe066', 'border-width': 3, 'background-color': '#2d2900' },
       },
       {
         selector: 'node.compromised',
-        style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 4, 'border-style': 'dashed', shape: 'octagon' },
+        style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
       },
       { selector: '.delegation-unconstrained', style: { 'border-style': 'dotted', 'border-width': 3, 'border-color': '#6f42c1' } },
       { selector: '.delegation-constrained',   style: { 'border-style': 'dotted', 'border-width': 3, 'border-color': '#0dcaf0' } },
-      { selector: '.high-value', style: { shape: 'star' } },
+      // high-value gets a brighter border glow; shape/size come from the type selector above
+      { selector: '.high-value', style: { 'border-width': 3.5, 'border-color': '#ffd700' } },
       {
         selector: 'edge',
         style: {
           width: 1.5, 'line-color': '#adb5bd',
           'target-arrow-shape': 'triangle', 'target-arrow-color': '#adb5bd',
           'curve-style': 'bezier', label: 'data(label)',
-          'font-size': '18px', color: '#cccccc', 'text-rotation': 'autorotate',
+          'font-size': '10px', color: '#cccccc', 'text-rotation': 'autorotate',
           'text-background-color': '#1e1e1e', 'text-background-opacity': 0.9,
-          'text-background-padding': '1px', 'text-background-shape': 'roundrectangle',
+          'text-background-padding': '2px', 'text-background-shape': 'roundrectangle',
         },
       },
       { selector: '.kerberos-edge', style: { 'line-color': '#4dabf7', 'target-arrow-color': '#4dabf7', width: 2.5, 'z-index': 10 } },
