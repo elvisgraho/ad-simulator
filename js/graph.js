@@ -174,13 +174,18 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-user',     style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#091f14', 'border-color': '#4ec9b0' } },
       { selector: '.cy-node-admin',    style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#2a0606', 'border-color': '#f44747' } },
       { selector: '.cy-node-svc',      style: { shape: 'octagon',       width: '48px', height: '48px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a' } },
-      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '32px', 'background-height': '32px' } },
-      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '42px', 'background-height': '36px' } },
+      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '42px', 'background-height': '34px' } },
       { selector: '.cy-node-attacker', style: { shape: 'hexagon',       width: '60px', height: '60px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
       {
         selector: 'node.highlighted',
         style: { 'border-color': '#ffe066', 'border-width': 3, 'background-color': '#2d2900' },
       },
+      // Re-assert non-square icon dimensions after highlighted/compromised cascade — prevents Cytoscape
+      // from falling back to the base node 68% percentage values on hover/state change.
+      { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '36px' } },
+      { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '34px' } },
+      { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '36px' } },
       {
         selector: 'node.compromised',
         style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
@@ -215,7 +220,7 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-entra',       style: { shape: 'diamond',       width: '68px', height: '68px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5 } },
       { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#00182e', 'border-color': '#50b4e8' } },
       { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',       width: '56px', height: '56px', 'background-color': '#2a1400', 'border-color': '#ff8c00' } },
-      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '32px', 'background-height': '32px' } },
+      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '44px', 'background-height': '36px' } },
       { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',      width: '52px', height: '52px', 'background-color': '#160d2c', 'border-color': '#8764b8' } },
       { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
       { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },

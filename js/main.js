@@ -54,7 +54,7 @@ import {
 import {
   entraInteractiveSignInScenario, entraWHfBSignInScenario, entraPRTSSOScenario,
   entraConditionalAccessScenario, entraManagedIdentityScenario, entraPIMActivationScenario,
-  entraTpmAttestationScenario, entraMacOSSSOScenario,
+  entraTpmAttestationScenario, entraMacOSSSOScenario, entraPRTRotationScenario,
 } from './scenarios/entra_legit.js';
 
 // Button → scenario mapping
@@ -125,6 +125,7 @@ const ENTRA_SCENARIO_MAP = {
   'btn-entra-mi':            entraManagedIdentityScenario,
   'btn-entra-pim':           entraPIMActivationScenario,
   'btn-entra-tpm-provision': entraTpmAttestationScenario,
+  'btn-entra-prt-rotation':  entraPRTRotationScenario,
   'btn-entra-macos-sso':     entraMacOSSSOScenario,
 };
 
