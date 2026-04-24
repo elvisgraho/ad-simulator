@@ -9,22 +9,22 @@ import { stepDelay } from '../state.js';
 export const entraAzureHoundScenario = [
   {
     scenarioName: "Attack: AzureHound / BloodHound Enumeration (Entra ID)",
-    logMessage: "Attacker Goal: Map Entra ID attack paths using BloodHound/AzureHound. Any valid tenant user credential is sufficient — MS Graph API read access is granted to all members by default.",
+    logMessage: "Attacker Goal: Map Entra ID attack paths using BloodHound/AzureHound. Broad tenant metadata is visible to ordinary members, but a near-complete graph requires a reader-capable foothold such as Global Reader, Security Reader, Directory Readers, or an app/admin session with equivalent Graph read access.",
     logType: "attack",
     action: () => highlightElement("ent_attacker"),
   },
   {
-    logMessage: "Prerequisite: Attacker has Alice's compromised credentials (alice@corp.onmicrosoft.com). Low-privilege — no admin role required.",
+    logMessage: "Prerequisite: Attacker has Alice's compromised credentials (alice@corp.onmicrosoft.com). In this lab, Alice is a low-visibility reader account used by operations staff: broad read, but no write privileges or standing tenant admin.",
     logType: "info",
     action: () => highlightElement("ent_user1", stepDelay, "compromised"),
   },
   {
-    logMessage: "Attacker: POST /oauth2/v2.0/token { grant_type=password, username=alice@corp, password=<cracked>, scope=https://graph.microsoft.com/.default }. ROPC flow — authenticates headlessly without browser, bypasses interactive CA policies.",
+    logMessage: "Attacker authenticates AzureHound/ROADtools with a normal delegated Entra session, for example device code or browser auth using a Microsoft public client. Effective access comes from Alice's reader role, not from any magical client privilege.",
     logType: "oidc",
-    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "ROPC auth (alice)"),
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "delegated Graph auth"),
   },
   {
-    logMessage: "Entra ID → Attacker: 200 OK { access_token (JWT, 1h, scp=User.Read+Directory.Read.All), refresh_token (14d) }. MS Graph token issued for Alice.",
+    logMessage: "Entra ID → Attacker: delegated Microsoft Graph token issued for Alice's session. The token reflects the directory read rights of the compromised account and tenant roles already assigned to it.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "MS Graph token"),
   },
@@ -39,7 +39,7 @@ export const entraAzureHoundScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /groups+members"),
   },
   {
-    logMessage: "AzureHound: GET /beta/roleManagement/directory/roleAssignments?$expand=principal&$top=999. Returns all active + PIM-eligible Entra role assignments. Finds: EntraAdmin has GlobalAdministrator eligible, AppReg-01 SP has RoleManagement.ReadWrite.Directory app role.",
+    logMessage: "AzureHound: GET /beta/roleManagement/directory/roleAssignments?$expand=principal&$top=999 for active role assignments, then current PIM schedule APIs for eligible roles. This works here because the compromised account already has reader permissions that expose role-management data.",
     logType: "msgraph",
     action: () => { highlightElement("ent_admin"); addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /roleAssignments"); },
   },
@@ -49,7 +49,7 @@ export const entraAzureHoundScenario = [
     action: () => { highlightElement("ent_svc"); addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /applications+SPs"); },
   },
   {
-    logMessage: "AzureHound: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies. Parses all Conditional Access policies — conditions, exclusions, and control gaps. Finds: legacy auth (Exchange ActiveSync) not blocked, breakglass account excluded from all policies.",
+    logMessage: "AzureHound: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies. This is not a default member capability; it succeeds here because the compromised account has Policy.Read.All and a supported reader role. Parses conditions, exclusions, and control gaps.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /conditionalAccess"),
   },
@@ -59,7 +59,7 @@ export const entraAzureHoundScenario = [
     action: () => { highlightElement("ent_svc"); highlightElement("ent_user1"); highlightElement("ent_admin"); },
   },
   {
-    logMessage: "IMPACT: Full tenant object map obtained via read-only Graph API. Attack paths to Global Admin, over-permissioned service principals, CA policy gaps, and stale credential-bearing apps identified — zero alerts generated (all legitimate read operations).",
+    logMessage: "IMPACT: A high-fidelity tenant attack graph is built from read-only Graph activity. This is realistic when the attacker lands on an overlooked reader-capable account or app, which tends to generate much less operational noise than overt privilege abuse.",
     logType: "success",
     action: () => highlightElement("ent_tenant"),
   },
@@ -69,12 +69,12 @@ export const entraAzureHoundScenario = [
 export const entraGraphEnumScenario = [
   {
     scenarioName: "Attack: Graph API Targeted Recon (ROADtools / GraphRunner)",
-    logMessage: "Attacker Goal: Precision recon via MS Graph — find over-privileged apps, accounts without MFA, stale credentials, and CA policy gaps. Tools: ROADtools, GraphRunner (PowerShell), TokenTactics.",
+    logMessage: "Attacker Goal: Precision recon via Microsoft Graph — find over-privileged apps, accounts without MFA, stale credentials, and Conditional Access gaps. Tools: ROADtools, GraphRunner, TokenTactics.",
     logType: "attack",
     action: () => highlightElement("ent_attacker"),
   },
   {
-    logMessage: "Attacker: roadrecon auth --client-id 1950a258-227b-4e31-a9cf-717495945fc2 (Microsoft Azure PowerShell — natively trusted, high Graph permissions). PKCE device code — no app registration in target tenant needed.",
+    logMessage: "Attacker authenticates ROADtools with a public Microsoft client and delegated user auth. The client itself does not grant extra read power; the useful access comes from the compromised account's tenant role, such as Global Reader, Security Reader, or Reports Reader.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "auth (AzurePowerShell)"),
   },
@@ -89,27 +89,27 @@ export const entraGraphEnumScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /servicePrincipals"),
   },
   {
-    logMessage: "Attacker → Microsoft Graph reports API: GET https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$filter=isMfaRegistered eq false. This is the current supported endpoint for MFA-registration state, replacing older Azure AD Graph-era properties such as strongAuthenticationDetail.",
+    logMessage: "Attacker → Microsoft Graph reports API: GET https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$filter=isMfaRegistered eq false. This is the current supported endpoint for MFA-registration state and requires a reports-capable reader context, not a random member account.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /users (MFA gaps)"),
   },
   {
-    logMessage: "Attacker → Microsoft Graph: GET /v1.0/directoryRoles?$expand=members for standing admins. Then GET /v1.0/roleManagement/directory/roleEligibilityScheduleInstances?$expand=roleDefinition for PIM-eligible Microsoft Entra roles. This uses the current PIM API family instead of the deprecated /beta/privilegedAccess/aadRoles endpoint.",
+    logMessage: "Attacker → Microsoft Graph: GET /v1.0/directoryRoles?$expand=members for standing admins. Then GET /v1.0/roleManagement/directory/roleEligibilityScheduleInstances?$expand=roleDefinition for PIM-eligible Microsoft Entra roles. This is the current PIM API family and again assumes a supported reader role on the compromised identity.",
     logType: "msgraph",
     action: () => { highlightElement("ent_admin"); addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /directoryRoles"); },
   },
   {
-    logMessage: "Attacker → MS Graph: GET /v1.0/groups/{GlobalAdminGroupId}/members. Result: 'svc-backup@corp.onmicrosoft.com' is a direct member of Global Administrators group — service account, no MFA registered, no CA exclusion.",
+    logMessage: "Attacker → MS Graph: GET /v1.0/groups/{GlobalAdminGroupId}/members. Result: 'svc-backup@corp.onmicrosoft.com' is a direct member of Global Administrators group — service-style admin account, no MFA registered, and still using weaker sign-in controls than the standard admin baseline.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /groups/GA/members"),
   },
   {
-    logMessage: "Attacker → Microsoft Graph: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies (requires Policy.Read.All). Policy 'Block legacy auth' has exclusion: onPremisesUserPrincipalName ENDSWITH 'svc-backup'. Legacy auth remains unblocked for this account.",
+    logMessage: "Attacker → Microsoft Graph: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies (requires Policy.Read.All). Policies show break-glass and service-account exceptions, plus weaker enforcement on some noninteractive sign-in paths. That makes svc-backup a higher-confidence target than a normal user.",
     logType: "msgraph",
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "IMPACT: Recon complete — ROADtools DB built locally. Target identified: svc-backup@corp (Global Admin member, no MFA, legacy auth unblocked) + AppReg-01 (RoleManagement.ReadWrite.Directory app permission, two secrets with 2027 expiry). Multiple high-confidence attack paths, all via silent read-only API calls.",
+    logMessage: "IMPACT: Recon complete — ROADtools DB built locally. Target identified: a non-MFA reader/admin account plus an over-privileged app registration with long-lived secrets. Multiple high-confidence attack paths emerge without needing noisy write activity.",
     logType: "success",
     action: () => { highlightElement("ent_admin"); highlightElement("ent_svc"); },
   },
@@ -128,7 +128,7 @@ export const entraPasswordSprayScenario = [
     action: () => highlightElement("ent_attacker"),
   },
   {
-    logMessage: "Attacker: 340 UPNs collected via AzureHound + LinkedIn OSINT (firstname.lastname@corp.onmicrosoft.com naming convention confirmed). Password candidates: 'Spring2024!', 'Corp2024!', 'Welcome1'. Tool: CredMaster / MSOLSpray with IP rotation per request.",
+    logMessage: "Attacker: 340 UPNs collected via tenant recon + OSINT. Password spray is aimed first at low-friction targets such as service-style accounts, break-fix accounts, and users excluded from strong MFA. Tooling: CredMaster / MSOLSpray with IP rotation per request.",
     logType: "info",
     action: () => highlightElement("ent_attacker"),
   },
@@ -148,17 +148,17 @@ export const entraPasswordSprayScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "spray batch (100 accts)"),
   },
   {
-    logMessage: "Entra ID → Attacker: 200 OK { access_token, refresh_token, token_type: Bearer, scope } — alice@corp:Spring2024! valid. ROPC flow bypasses interactive CA policies including MFA requirements (legacy auth path). Smart Lockout not triggered due to IP rotation.",
+    logMessage: "Entra ID → Attacker: 200 OK { access_token, refresh_token, token_type: Bearer, scope } — alice@corp:Spring2024! valid. This succeeds here because the compromised account is one of the tenant's weak exceptions: no MFA enforced on that path and no block on ROPC-style auth for the account.",
     logType: "success",
     action: () => { highlightElement("ent_user1", stepDelay, "compromised"); addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "200 OK (alice)"); },
   },
   {
-    logMessage: "Entra Sign-In Log: Auth method 'Password', MFA: None, Client app: 'Other clients' (ROPC). Identity Protection risk: None if IP is clean VPS. Defender for Identity: no alert (no on-prem traffic). Gap: CA policy 'Block legacy auth' would have prevented this — ROPC is a legacy auth flow.",
+    logMessage: "Entra Sign-In Log: Auth method 'Password', MFA: None, Client app: 'Other clients' (ROPC). This is a real sign-in pattern for badly scoped exceptions, not a universal MFA bypass. Smart Lockout still matters, but IP rotation keeps the spray below thresholds.",
     logType: "info",
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "IMPACT: Valid credentials obtained (alice@corp:Spring2024!) via legacy auth — bypassed all interactive CA policies. Attacker holds access_token (1h) + refresh_token (14d). Root cause: CA policy missing 'Block legacy authentication' control for all users.",
+    logMessage: "IMPACT: Valid credentials obtained for an account left outside modern MFA controls. Root cause is tenant misconfiguration or exception handling, not some inherent ability of ROPC to defeat MFA when MFA is actually required.",
     logType: "attack",
     action: () => highlightElement("ent_user1"),
   },
@@ -248,17 +248,17 @@ export const entraDeviceCodePhishingScenario = [
     action: () => { highlightElement("ent_user1", stepDelay, "compromised"); addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "tokens (alice, 90d)"); },
   },
   {
-    logMessage: "Attacker: refresh_token has offline_access scope — valid 90 days or until revoked, survives password changes. POST /token { grant_type=refresh_token } silently issues fresh access_tokens hourly. Accesses MS Graph: /me, /me/messages, /users, /directoryRoles, /applications.",
+    logMessage: "Attacker: refresh_token has offline_access scope — often long-lived until revocation, sign-in risk enforcement, or session invalidation. POST /token { grant_type=refresh_token } silently issues fresh access tokens. Accesses MS Graph: /me, /me/messages, and whatever delegated scopes the victim approved.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /me, /users (90d)"),
   },
   {
-    logMessage: "DETECTION: Entra Sign-In logs: Auth method 'Device code flow', unusual location/IP. Identity Protection: 'Unfamiliar sign-in properties'. BLOCK: CA policy targeting 'Filter for devices → device code flow' or 'Require compliant device' — blocks ROPC/device_code for non-managed devices.",
+    logMessage: "DETECTION: Entra Sign-In logs show 'Device code flow' plus unusual IP/location. Microsoft and incident responders have repeatedly documented real device-code phishing campaigns. BLOCK: authentication-flows Conditional Access targeting device code, tighter user-consent controls, and phishing-resistant MFA.",
     logType: "info",
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "IMPACT: Full MS Graph token acquired without attacker touching victim's device. Bypasses all CA policies (victim auth came from their compliant device). Refresh token valid 90 days — survives password reset (token not revoked until explicit session revocation or password change with revoke flag). Works against any tenant with device_code flow permitted.",
+    logMessage: "IMPACT: Attacker receives real tokens from the victim's completed sign-in without touching the victim endpoint. The flow inherits whatever controls the victim satisfied during that legitimate authentication, which is why it remains effective unless the tenant explicitly restricts device code flow or revokes the resulting sessions.",
     logType: "attack",
     action: () => highlightElement("ent_user1"),
   },
@@ -402,17 +402,17 @@ export const entraConsentPhishingScenario = [
     action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "admin consent (org-wide)"),
   },
   {
-    logMessage: "Entra ID: oauth2PermissionGrant created for entire tenant (consentType=AllPrincipals). Authorization code delivered to attacker redirect URI. POST /token → { access_token (1h, Mail.ReadWrite scp for admin), refresh_token (offline_access, 90d) }.",
+    logMessage: "Entra ID: oauth2PermissionGrant created for the tenant (consentType=AllPrincipals). Authorization code delivered to attacker redirect URI. POST /token returns delegated tokens for the consenting admin plus tenant-wide pre-consent for future users of the app.",
     logType: "oidc",
     action: () => { highlightElement("ent_admin", stepDelay, "compromised"); addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "auth_code → tokens"); },
   },
   {
-    logMessage: "Admin consent with AllPrincipals: attacker can acquire delegated tokens for ANY user by impersonating them via on-behalf-of flow. GET /v1.0/users/{alice_id}/messages (as Alice), GET /v1.0/users/{bob_id}/drive/root/children (as Bob). Mail + files of all 340 users accessible.",
+    logMessage: "Admin consent with AllPrincipals does NOT let the attacker mint delegated tokens for arbitrary users on demand. What it does do is suppress future consent prompts tenant-wide, so the app can keep harvesting delegated tokens as additional users authenticate while the attacker immediately abuses the consenting admin's mailbox and files.",
     logType: "attack",
     action: () => { highlightElement("ent_user1"); highlightElement("ent_user2"); },
   },
   {
-    logMessage: "Attacker: refresh_token survives Alice's password change. Silently re-issues access_token every hour via POST /token { grant_type=refresh_token }. Reads/forwards all mail to exfil mailbox. Zero user interaction after initial admin consent.",
+    logMessage: "Attacker: refresh_token can continue yielding access tokens until revoked or otherwise invalidated by tenant controls. Reads and forwards the consenting admin's mail immediately, and the app remains pre-approved for future user sign-ins.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_m365", "msgraph", "mail + file exfil (all)"),
   },
@@ -422,7 +422,7 @@ export const entraConsentPhishingScenario = [
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "IMPACT: Persistent token-based access independent of passwords. Survives password resets, MFA changes, CA policy updates. Admin consent elevates to all current + future tenant users. App persists in Enterprise Applications until explicitly removed. Classic 'illicit consent grant' — Microsoft Incident Response's most common IR finding.",
+    logMessage: "IMPACT: Persistent OAuth foothold independent of the initial phishing email. The attacker definitely owns the consenting admin's delegated data and gains a tenant-wide pre-consented lure for follow-on user compromise. That's realistic and common in Microsoft incident response, without inventing arbitrary-user impersonation powers.",
     logType: "attack",
     action: () => highlightElement("ent_svc"),
   },
@@ -471,9 +471,9 @@ export const entraAppCredAbuseScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "POST /roleAssignments (GA)"),
   },
   {
-    logMessage: "Entra ID: Role assignment created. Attacker-controlled service principal is now a standing Global Administrator. Issues new client_credentials token — 'wids' claim now includes GA GUID '62e90394-...'. Full tenant admin without any user account.",
+    logMessage: "Entra ID: Role assignment created. Attacker-controlled service principal is now a standing Global Administrator. New client_credentials tokens authorize privileged directory operations through the service principal itself, with no user account or MFA anywhere in the loop.",
     logType: "attack",
-    action: () => { highlightElement("ent_tenant", stepDelay, "compromised"); addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "GA token (wids)"); },
+    action: () => { highlightElement("ent_tenant", stepDelay, "compromised"); addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "GA app token"); },
   },
   {
     logMessage: "DETECTION: Entra Audit Log event 'Update application — Add password credentials' is high signal. Any credential addition to an existing app should trigger an immediate alert. Microsoft Defender for Cloud Apps: App governance policy 'Alert on new credential added to app with sensitive permissions'. Identity Secure Score: 'App admins should not be Global Admins'.",
@@ -653,65 +653,6 @@ export const entraIllicitConsentScenario = [
     logMessage: "IMPACT: Persistent, stealthy, password-independent access. No malware, no persistent agent — pure OAuth2 abuse. Admin consent elevates to all current AND future users added to tenant. App persists in Enterprise Applications until explicitly removed. Most frequent finding in Microsoft DART cloud incident response engagements.",
     logType: "attack",
     action: () => highlightElement("ent_svc"),
-  },
-];
-
-// ══════════════════════════════════════════════════════════════════
-//  INITIAL ACCESS — LEGACY AUTH PROTOCOL ABUSE
-// ══════════════════════════════════════════════════════════════════
-
-// ── 13. Legacy Auth Protocol Abuse (SMTP AUTH / EWS / IMAP / ActiveSync) ──────
-export const entraLegacyAuthAbuseScenario = [
-  {
-    scenarioName: "Attack: Legacy Auth Protocol Abuse — Direct Mailbox Auth (MFA Bypass)",
-    logMessage: "Attacker Goal: Authenticate directly to Exchange Online mailboxes using legacy protocols (SMTP AUTH, EWS Basic Auth, IMAP, POP3, ActiveSync). Legacy auth bypasses Entra ID Conditional Access entirely — no MFA prompt generated.",
-    logType: "attack",
-    action: () => highlightElement("ent_attacker"),
-  },
-  {
-    logMessage: "Recon: AzureHound CA policy dump shows 'Block legacy auth' policy is NOT applied to the 'Sync accounts' group. Tenant admin re-enabled SMTP AUTH for shared mailboxes. GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies confirms the legacy-auth exclusions and exempted users.",
-    logType: "msgraph",
-    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "CA policy enum"),
-  },
-  {
-    logMessage: "Check per-user SMTP AUTH state via EXO PowerShell: Get-CASMailbox alice@corp -SmtpClientAuthenticationDisabled → $false. Legacy protocol matrix: SMTP AUTH (port 587) ✓ active, EWS ✓ active, IMAP4 ✓ active, ActiveSync ✓ active. No per-protocol block applied.",
-    logType: "info",
-    action: () => highlightElement("ent_attacker"),
-  },
-  {
-    logMessage: "SMTP AUTH attack: openssl s_client -connect smtp.office365.com:587 -starttls smtp → EHLO → AUTH LOGIN → Base64(alice@corp.com) + Base64(Spring2024!) submitted. Exchange Online accepts credentials directly — Entra ID NOT consulted. Zero MFA, zero CA policy, zero sign-in risk evaluation.",
-    logType: "http",
-    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "SMTP AUTH (STARTTLS)"),
-  },
-  {
-    logMessage: "Exchange Online: '235 2.7.0 Authentication successful'. Attacker sends spear-phish as alice@corp.com: MAIL FROM:<alice@corp.com> → RCPT TO:<cfo@corp.com> → DATA: [BEC invoice fraud payload]. Internal sender — bypasses all external sender warnings and SPF/DKIM checks.",
-    logType: "attack",
-    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1", undefined, "compromised"); },
-  },
-  {
-    logMessage: "EWS Basic Auth attack: POST https://outlook.office365.com/EWS/Exchange.asmx (Authorization: Basic <base64(alice@corp:Spring2024!)>). SOAP GetFolder request. Exchange validates Basic credential directly against stored hash — Entra CA not in path. Returns full XML mailbox response.",
-    logType: "http",
-    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "EWS Basic Auth"),
-  },
-  {
-    logMessage: "Via EWS: reads inbox (FindItem), calendar (all meetings including exec boardroom bookings), contacts. Sets persistent forwarding rule via EWS UpdateInboxRules: all mail with 'invoice' or 'payment' CC'd to attacker mailbox. No Entra logs. EWS access logged only in Exchange Unified Audit Log (if enabled, not default in all SKUs).",
-    logType: "attack",
-    action: () => highlightElement("ent_m365"),
-  },
-  {
-    logMessage: "IMAP4 attack: openssl s_client -connect outlook.office365.com:993 → A1 AUTHENTICATE PLAIN <base64(\\x00alice@corp.com\\x00Spring2024!)>. Response: A1 OK AUTHENTICATE completed. Access all IMAP folders, download entire mailbox. No Entra sign-in event generated.",
-    logType: "http",
-    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "IMAP AUTHENTICATE PLAIN"),
-  },
-  {
-    logMessage: "Telemetry gap assessment: Entra ID Sign-In logs: ZERO entries for all attacks. Exchange Unified Audit Log: MailItemsAccessed events present — but UAL requires E3/E5 license and is not enabled by default. Identity Protection: no risk events (no Entra auth path taken). SOC alerted? No.",
-    logType: "info",
-    action: () => highlightElement("ent_tenant"),
-  },
-  {
-    logMessage: "IMPACT: Full mailbox compromise (read/send/forward/delete) without triggering a single Entra Conditional Access evaluation or sign-in log entry. MFA is entirely irrelevant for legacy auth paths — MFA is an Entra ID control, not an Exchange control. Root cause: legacy auth is a parallel authentication path. Mitigation: Set-AuthenticationPolicy to block Basic Auth per-protocol for all users, enforce via CA 'Block legacy auth' policy with ZERO exclusions.",
-    logType: "attack",
-    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
   },
 ];
 
