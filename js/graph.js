@@ -174,6 +174,10 @@ export const hybridInitialElements = [
   { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 430, y: 335 } },
 ];
 
+export function fitGraphToViewport(padding = state.graphFitPadding) {
+  state.cy?.fit(undefined, padding);
+}
+
 export function initializeCytoscape(elements) {
   if (state.cy) state.cy.destroy();
 
@@ -181,6 +185,7 @@ export function initializeCytoscape(elements) {
     container: document.getElementById('cy'),
     elements: JSON.parse(JSON.stringify(elements)),
     userZoomingEnabled: false,
+    fit: false,
     style: [
       {
         selector: 'node',
@@ -294,7 +299,10 @@ export function initializeCytoscape(elements) {
   state.cy.nodes().grabify();
 
   if (!state._resizeHandler) {
-    state._resizeHandler = () => { state.cy?.resize(); state.cy?.fit(undefined, 40); };
+    state._resizeHandler = () => {
+      state.cy?.resize();
+      fitGraphToViewport();
+    };
     window.addEventListener('resize', state._resizeHandler);
   }
 }
