@@ -147,63 +147,63 @@ const NODE_ICONS = {
 };
 
 export const initialElements = [
-  { data: { id: 'dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 450, y: 100 } },
-  { data: { id: 'ca01', name: 'CA01', type: 'ca', fqdn: 'ca01.corp.local', ip: '10.1.1.20' }, classes: 'cy-node cy-node-ca', position: { x: 600, y: 150 } },
-  { data: { id: 'srv_web01', name: 'SRV-WEB-01', type: 'server', fqdn: 'srv-web-01.corp.local', ip: '10.1.5.20', spns: ['HTTP/srv-web-01.corp.local'] }, classes: 'cy-node cy-node-server', position: { x: 750, y: 250 } },
-  { data: { id: 'srv_app01', name: 'SRV-APP-01', type: 'server', fqdn: 'srv-app-01.corp.local', ip: '10.1.5.30', unconstrained_delegation: true }, classes: 'cy-node cy-node-server delegation-unconstrained', position: { x: 750, y: 350 } },
-  { data: { id: 'srv_sql01', name: 'SQL01', type: 'server', fqdn: 'sql01.corp.local', ip: '10.1.5.10' }, classes: 'cy-node cy-node-server', position: { x: 750, y: 450 } },
-  { data: { id: 'srv_files01', name: 'FILES01', type: 'server', fqdn: 'files01.corp.local', ip: '10.1.5.40' }, classes: 'cy-node cy-node-server', position: { x: 750, y: 550 } },
-  { data: { id: 'svc_sql01', name: 'svc_sql01', type: 'svc', sam: 'CORP\\svc_sql01', spns: ['MSSQLSvc/sql01.corp.local:1433'], ip: '10.1.5.10', ntlm_hash: 'SqlSvcHash1' }, classes: 'cy-node cy-node-svc', position: { x: 550, y: 400 } },
-  { data: { id: 'svc_nopreauth', name: 'svc_nopreauth', type: 'svc', sam: 'CORP\\svc_nopreauth', no_preauth: true, ip: '10.1.5.11', ntlm_hash: 'NoPreauthHash' }, classes: 'cy-node cy-node-svc', position: { x: 550, y: 600 } },
-  { data: { id: 'host1', name: 'WKSTN-01', type: 'host', fqdn: 'wkstn-01.corp.local', ip: '10.1.10.101' }, classes: 'cy-node cy-node-host', position: { x: 100, y: 450 } },
-  { data: { id: 'host2', name: 'WKSTN-02', type: 'host', fqdn: 'wkstn-02.corp.local', ip: '10.1.10.102' }, classes: 'cy-node cy-node-host', position: { x: 350, y: 450 } },
-  { data: { id: 'user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', ip: '10.1.10.50', ntlm_hash: 'AliceHash' }, classes: 'cy-node cy-node-user', position: { x: 100, y: 550 } },
-  { data: { id: 'user2', name: 'Bob', type: 'user', sam: 'CORP\\Bob', ip: '10.1.10.51', ntlm_hash: 'BobHash' }, classes: 'cy-node cy-node-user', position: { x: 350, y: 550 } },
-  { data: { id: 'admin1', name: 'DomainAdmin', type: 'admin', sam: 'CORP\\DomainAdmin', ip: '10.1.1.5', ntlm_hash: 'DAHash' }, classes: 'cy-node cy-node-admin high-value', position: { x: 225, y: 100 } },
-  { data: { id: 'attacker', name: 'Attacker', type: 'attacker', ip: '192.168.1.100' }, classes: 'cy-node cy-node-attacker', position: { x: 200, y: 300 } },
+  { data: { id: 'dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 470, y: 92 } },
+  { data: { id: 'ca01', name: 'CA01', type: 'ca', fqdn: 'ca01.corp.local', ip: '10.1.1.20' }, classes: 'cy-node cy-node-ca', position: { x: 620, y: 92 } },
+  { data: { id: 'srv_web01', name: 'SRV-WEB-01', type: 'server', fqdn: 'srv-web-01.corp.local', ip: '10.1.5.20', spns: ['HTTP/srv-web-01.corp.local'] }, classes: 'cy-node cy-node-server', position: { x: 770, y: 208 } },
+  { data: { id: 'srv_app01', name: 'SRV-APP-01', type: 'server', fqdn: 'srv-app-01.corp.local', ip: '10.1.5.30', unconstrained_delegation: true }, classes: 'cy-node cy-node-server delegation-unconstrained', position: { x: 770, y: 312 } },
+  { data: { id: 'srv_sql01', name: 'SQL01', type: 'server', fqdn: 'sql01.corp.local', ip: '10.1.5.10' }, classes: 'cy-node cy-node-server', position: { x: 770, y: 416 } },
+  { data: { id: 'srv_files01', name: 'FILES01', type: 'server', fqdn: 'files01.corp.local', ip: '10.1.5.40' }, classes: 'cy-node cy-node-server', position: { x: 770, y: 520 } },
+  { data: { id: 'svc_sql01', name: 'svc_sql01', type: 'svc', sam: 'CORP\\svc_sql01', spns: ['MSSQLSvc/sql01.corp.local:1433'], ip: '10.1.5.10', ntlm_hash: 'SqlSvcHash1' }, classes: 'cy-node cy-node-svc', position: { x: 585, y: 392 } },
+  { data: { id: 'svc_nopreauth', name: 'svc_nopreauth', type: 'svc', sam: 'CORP\\svc_nopreauth', no_preauth: true, ip: '10.1.5.11', ntlm_hash: 'NoPreauthHash' }, classes: 'cy-node cy-node-svc', position: { x: 585, y: 520 } },
+  { data: { id: 'host1', name: 'WKSTN-01', type: 'host', fqdn: 'wkstn-01.corp.local', ip: '10.1.10.101' }, classes: 'cy-node cy-node-host', position: { x: 120, y: 298 } },
+  { data: { id: 'host2', name: 'WKSTN-02', type: 'host', fqdn: 'wkstn-02.corp.local', ip: '10.1.10.102' }, classes: 'cy-node cy-node-host', position: { x: 280, y: 298 } },
+  { data: { id: 'user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', ip: '10.1.10.50', ntlm_hash: 'AliceHash' }, classes: 'cy-node cy-node-user', position: { x: 120, y: 430 } },
+  { data: { id: 'user2', name: 'Bob', type: 'user', sam: 'CORP\\Bob', ip: '10.1.10.51', ntlm_hash: 'BobHash' }, classes: 'cy-node cy-node-user', position: { x: 280, y: 430 } },
+  { data: { id: 'admin1', name: 'DomainAdmin', type: 'admin', sam: 'CORP\\DomainAdmin', ip: '10.1.1.5', ntlm_hash: 'DAHash' }, classes: 'cy-node cy-node-admin high-value', position: { x: 250, y: 92 } },
+  { data: { id: 'attacker', name: 'Attacker', type: 'attacker', ip: '192.168.1.100' }, classes: 'cy-node cy-node-attacker', position: { x: 100, y: 182 } },
   { data: { id: 'krbtgt', name: 'krbtgt', type: 'svc', sam: 'CORP\\krbtgt', ntlm_hash: 'KRBTGT_HASH_SECRET' }, classes: 'cy-node cy-node-svc high-value', style: { display: 'none' } },
 ];
 
 export const entraInitialElements = [
   // ── Identity plane ──
-  { data: { id: 'ent_tenant', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 480, y: 80 } },
-  { data: { id: 'ent_admin',  name: 'EntraAdmin', type: 'entraadmin', upn: 'admin@corp.onmicrosoft.com', pimEligible: true }, classes: 'cy-node cy-node-entraadmin high-value', position: { x: 290, y: 80 } },
+  { data: { id: 'ent_tenant', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 500, y: 88 } },
+  { data: { id: 'ent_admin',  name: 'EntraAdmin', type: 'entraadmin', upn: 'admin@corp.onmicrosoft.com', pimEligible: true }, classes: 'cy-node cy-node-entraadmin high-value', position: { x: 312, y: 88 } },
 
   // ── Client devices ──
-  { data: { id: 'ent_dev1', name: 'LAPTOP-01', type: 'entradevice', deviceId: 'dev-01', entraJoined: true, tpm: true, whfb: true, intuneCompliant: true }, classes: 'cy-node cy-node-entradevice', position: { x: 170, y: 200 } },
-  { data: { id: 'ent_dev2', name: 'LAPTOP-02', type: 'entradevice', deviceId: 'dev-02', entraRegistered: true, tpm: false, intuneCompliant: false }, classes: 'cy-node cy-node-entradevice', position: { x: 60, y: 310 } },
+  { data: { id: 'ent_dev1', name: 'LAPTOP-01', type: 'entradevice', deviceId: 'dev-01', entraJoined: true, tpm: true, whfb: true, intuneCompliant: true }, classes: 'cy-node cy-node-entradevice', position: { x: 145, y: 208 } },
+  { data: { id: 'ent_dev2', name: 'LAPTOP-02', type: 'entradevice', deviceId: 'dev-02', entraRegistered: true, tpm: false, intuneCompliant: false }, classes: 'cy-node cy-node-entradevice', position: { x: 145, y: 332 } },
 
   // ── Users ──
-  { data: { id: 'ent_user1', name: 'Alice', type: 'entrauser', upn: 'alice@corp.onmicrosoft.com', objectId: 'user-alice' }, classes: 'cy-node cy-node-entrauser', position: { x: 170, y: 330 } },
-  { data: { id: 'ent_user2', name: 'Bob',   type: 'entrauser', upn: 'bob@corp.onmicrosoft.com',   objectId: 'user-bob'   }, classes: 'cy-node cy-node-entrauser', position: { x: 60,  y: 430 } },
+  { data: { id: 'ent_user1', name: 'Alice', type: 'entrauser', upn: 'alice@corp.onmicrosoft.com', objectId: 'user-alice' }, classes: 'cy-node cy-node-entrauser', position: { x: 300, y: 272 } },
+  { data: { id: 'ent_user2', name: 'Bob',   type: 'entrauser', upn: 'bob@corp.onmicrosoft.com',   objectId: 'user-bob'   }, classes: 'cy-node cy-node-entrauser', position: { x: 300, y: 396 } },
 
   // ── Workload identities ──
-  { data: { id: 'ent_svc', name: 'AppReg-01', type: 'entrasvc', appId: 'app-01', objectId: 'svc-01' }, classes: 'cy-node cy-node-entrasvc', position: { x: 640, y: 270 } },
-  { data: { id: 'ent_mi',  name: 'WebApp-MI', type: 'entrami',  objectId: 'mi-01', miType: 'SystemAssigned' }, classes: 'cy-node cy-node-entrami',  position: { x: 750, y: 360 } },
+  { data: { id: 'ent_svc', name: 'AppReg-01', type: 'entrasvc', appId: 'app-01', objectId: 'svc-01' }, classes: 'cy-node cy-node-entrasvc', position: { x: 690, y: 248 } },
+  { data: { id: 'ent_mi',  name: 'WebApp-MI', type: 'entrami',  objectId: 'mi-01', miType: 'SystemAssigned' }, classes: 'cy-node cy-node-entrami',  position: { x: 690, y: 372 } },
 
   // ── Resources ──
-  { data: { id: 'ent_m365', name: 'M365 / Teams', type: 'entrarsc', url: 'https://teams.microsoft.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 650, y: 90 } },
-  { data: { id: 'ent_kv',   name: 'Key Vault',    type: 'azurersc', url: 'https://corp-kv.vault.azure.net' }, classes: 'cy-node cy-node-azurersc', position: { x: 760, y: 190 } },
+  { data: { id: 'ent_m365', name: 'M365 / Teams', type: 'entrarsc', url: 'https://teams.microsoft.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 700, y: 88 } },
+  { data: { id: 'ent_kv',   name: 'Key Vault',    type: 'azurersc', url: 'https://corp-kv.vault.azure.net' }, classes: 'cy-node cy-node-azurersc', position: { x: 820, y: 248 } },
 
   // ── Threat actor ──
-  { data: { id: 'ent_attacker', name: 'Attacker', type: 'attacker', ip: '185.220.x.x' }, classes: 'cy-node cy-node-attacker', position: { x: 370, y: 450 } },
+  { data: { id: 'ent_attacker', name: 'Attacker', type: 'attacker', ip: '185.220.x.x' }, classes: 'cy-node cy-node-attacker', position: { x: 120, y: 470 } },
 ];
 
 export const hybridInitialElements = [
   // ── On-Premises ──
-  { data: { id: 'hb_dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 195, y: 80 } },
-  { data: { id: 'hb_adfs', name: 'ADFS01', type: 'adfs', fqdn: 'adfs.corp.local', ip: '10.1.2.20' }, classes: 'cy-node cy-node-adfs', position: { x: 55, y: 195 } },
-  { data: { id: 'hb_aadconnect', name: 'AADConnect', type: 'aadconnect', fqdn: 'aadsync.corp.local', ip: '10.1.2.10', note: 'PHS/PTA/Writeback Agent' }, classes: 'cy-node cy-node-aadconnect', position: { x: 185, y: 245 } },
-  { data: { id: 'hb_msol', name: 'MSOL_sync', type: 'svc', sam: 'CORP\\MSOL_ab12cd34', ntlm_hash: 'MSOLHash', note: 'DS-Replication-Get-Changes-All ACE' }, classes: 'cy-node cy-node-svc', position: { x: 335, y: 190 } },
-  { data: { id: 'hb_user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', upn: 'alice@corp.com', synced: true, ip: '10.1.10.50' }, classes: 'cy-node cy-node-user', position: { x: 60, y: 370 } },
-  { data: { id: 'hb_dev1', name: 'WKSTN-HYB', type: 'host', fqdn: 'wkstn-hyb.corp.local', haadj: true, tpm: true, ip: '10.1.10.110' }, classes: 'cy-node cy-node-host', position: { x: 215, y: 405 } },
+  { data: { id: 'hb_dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 180, y: 92 } },
+  { data: { id: 'hb_adfs', name: 'ADFS01', type: 'adfs', fqdn: 'adfs.corp.local', ip: '10.1.2.20' }, classes: 'cy-node cy-node-adfs', position: { x: 60, y: 222 } },
+  { data: { id: 'hb_aadconnect', name: 'AADConnect', type: 'aadconnect', fqdn: 'aadsync.corp.local', ip: '10.1.2.10', note: 'PHS/PTA/Writeback Agent' }, classes: 'cy-node cy-node-aadconnect', position: { x: 235, y: 222 } },
+  { data: { id: 'hb_msol', name: 'MSOL_sync', type: 'svc', sam: 'CORP\\MSOL_ab12cd34', ntlm_hash: 'MSOLHash', note: 'DS-Replication-Get-Changes-All ACE' }, classes: 'cy-node cy-node-svc', position: { x: 370, y: 222 } },
+  { data: { id: 'hb_user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', upn: 'alice@corp.com', synced: true, ip: '10.1.10.50' }, classes: 'cy-node cy-node-user', position: { x: 110, y: 388 } },
+  { data: { id: 'hb_dev1', name: 'WKSTN-HYB', type: 'host', fqdn: 'wkstn-hyb.corp.local', haadj: true, tpm: true, ip: '10.1.10.110' }, classes: 'cy-node cy-node-host', position: { x: 270, y: 388 } },
 
   // ── Cloud (Entra ID) ──
-  { data: { id: 'hb_entra', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 590, y: 95 } },
-  { data: { id: 'hb_m365', name: 'M365 / SharePoint', type: 'entrarsc', url: 'https://corp.sharepoint.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 735, y: 220 } },
+  { data: { id: 'hb_entra', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 640, y: 92 } },
+  { data: { id: 'hb_m365', name: 'M365 / SharePoint', type: 'entrarsc', url: 'https://corp.sharepoint.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 800, y: 222 } },
 
   // ── Threat Actor ──
-  { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 430, y: 335 } },
+  { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 455, y: 422 } },
 ];
 
 export function fitGraphToViewport(padding = state.graphFitPadding) {
@@ -222,45 +222,51 @@ export function initializeCytoscape(elements) {
       {
         selector: 'node',
         style: {
-          width: '52px', height: '52px',
+          width: '56px', height: '56px',
           shape: 'ellipse',
           'background-color': '#2d2d30',
           'border-width': 2, 'border-color': '#555',
           'background-image': (ele) => NODE_ICONS[ele.data('type')] || '',
-          'background-fit': 'none',
+          'background-fit': 'contain',
           'background-clip': 'none',
+          'background-repeat': 'no-repeat',
+          'background-position-x': '50%',
+          'background-position-y': '42%',
           'background-image-opacity': 0.92,
-          'background-width': '68%',
-          'background-height': '68%',
+          'background-width': '34px',
+          'background-height': '34px',
           label: (ele) => ele.data('name'),
           'text-valign': 'bottom',
           'text-halign': 'center',
-          'text-margin-y': 6,
-          'font-size': '11px',
+          'text-margin-y': 10,
+          'font-size': '11.5px',
+          'font-weight': 600,
+          'text-wrap': 'wrap',
+          'text-max-width': '92px',
           color: '#cccccc',
           'text-outline-color': '#181818',
-          'text-outline-width': 2,
+          'text-outline-width': 3,
         },
       },
       // Each type gets a distinct shape + color so nodes are recognizable at a glance
-      { selector: '.cy-node-dc',       style: { shape: 'diamond',       width: '64px', height: '64px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5 } },
-      { selector: '.cy-node-ca',       style: { shape: 'pentagon',      width: '54px', height: '54px', 'background-color': '#271e00', 'border-color': '#dcdcaa' } },
-      { selector: '.cy-node-user',     style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#091f14', 'border-color': '#4ec9b0' } },
-      { selector: '.cy-node-admin',    style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#2a0606', 'border-color': '#f44747' } },
-      { selector: '.cy-node-svc',      style: { shape: 'octagon',       width: '48px', height: '48px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a' } },
-      { selector: '.cy-node-host',     style: { shape: 'roundrectangle',width: '58px', height: '46px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '42px', 'background-height': '36px' } },
-      { selector: '.cy-node-server',   style: { shape: 'rectangle',     width: '60px', height: '44px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '42px', 'background-height': '34px' } },
-      { selector: '.cy-node-attacker', style: { shape: 'hexagon',       width: '60px', height: '60px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
+      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-width': '38px', 'background-height': '38px' } },
+      { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-svc',      style: { shape: 'octagon',        width: '52px', height: '52px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-host',     style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '42px', 'background-height': '32px' } },
+      { selector: '.cy-node-server',   style: { shape: 'rectangle',      width: '72px', height: '52px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '42px', 'background-height': '30px' } },
+      { selector: '.cy-node-attacker', style: { shape: 'hexagon',        width: '64px', height: '64px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5, 'background-width': '36px', 'background-height': '36px' } },
       {
         selector: 'node.highlighted',
         style: { 'border-color': '#ffe066', 'border-width': 3, 'background-color': '#2d2900' },
       },
       // Re-assert non-square icon dimensions after highlighted/compromised cascade — prevents Cytoscape
       // from falling back to the base node 68% percentage values on hover/state change.
-      { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '36px' } },
-      { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '34px' } },
-      { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '36px' } },
-      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '46px', 'background-height': '34px' } },
+      { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '32px' } },
+      { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '30px' } },
+      { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '32px' } },
+      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '44px', 'background-height': '30px' } },
       {
         selector: 'node.compromised',
         style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
@@ -292,18 +298,18 @@ export function initializeCytoscape(elements) {
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
 
       // ── Entra ID node types ──
-      { selector: '.cy-node-entra',       style: { shape: 'diamond',       width: '68px', height: '68px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5 } },
-      { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',       width: '48px', height: '48px', 'background-color': '#00182e', 'border-color': '#50b4e8' } },
-      { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',       width: '56px', height: '56px', 'background-color': '#2a1400', 'border-color': '#ff8c00' } },
-      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle',width: '60px', height: '46px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '44px', 'background-height': '36px' } },
-      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',      width: '52px', height: '52px', 'background-color': '#160d2c', 'border-color': '#8764b8' } },
-      { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
-      { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },
-      { selector: '.cy-node-azurersc',   style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#1e0e00', 'border-color': '#e86c00' } },
+      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-width': '38px', 'background-height': '38px' } },
+      { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '42px', 'background-height': '32px' } },
+      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#160d2c', 'border-color': '#8764b8', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-entrami',     style: { shape: 'octagon',        width: '56px', height: '56px', 'background-color': '#001c18', 'border-color': '#00b294', 'background-width': '32px', 'background-height': '32px' } },
+      { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',         width: '60px', height: '60px', 'background-color': '#001400', 'border-color': '#107c10', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-azurersc',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#1e0e00', 'border-color': '#e86c00', 'background-width': '34px', 'background-height': '34px' } },
 
       // ── Hybrid Identity node types ──
-      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',     width: '64px', height: '44px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-width': '46px', 'background-height': '34px' } },
-      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',      width: '54px', height: '54px', 'background-color': '#1e1400', 'border-color': '#e8a838' } },
+      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',      width: '76px', height: '52px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-width': '44px', 'background-height': '30px' } },
+      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',       width: '60px', height: '60px', 'background-color': '#1e1400', 'border-color': '#e8a838', 'background-width': '34px', 'background-height': '34px' } },
 
       // ── Hybrid protocol edges ──
       { selector: '.sync-edge',       style: { 'line-color': '#4fd1aa', 'target-arrow-color': '#4fd1aa', width: 2.5, 'line-style': 'dashed', 'z-index': 10 } },
