@@ -7,6 +7,12 @@ function svgIcon(innerPaths) {
   )}`;
 }
 
+function paddedSvgIcon(innerPaths) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
+  )}`;
+}
+
 function protocolToEdgeClass(protocol) {
   const normalized = String(protocol || '').trim().toLowerCase();
   const aliasMap = [
@@ -40,13 +46,13 @@ function protocolToEdgeClass(protocol) {
 }
 
 const NODE_ICONS = {
-  dc: svgIcon(`
-    <rect x="4.5" y="4.5" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <rect x="4.5" y="10" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <rect x="4.5" y="15.5" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <circle cx="17" cy="6.5" r="0.9" fill="#569cd6"/>
-    <circle cx="17" cy="12" r="0.9" fill="#569cd6"/>
-    <circle cx="17" cy="17.5" r="0.9" fill="#569cd6"/>`),
+  dc: paddedSvgIcon(`
+    <rect x="8" y="7.5" width="16" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="8" y="14" width="16" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="8" y="20.5" width="16" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <circle cx="20.5" cy="9.5" r="0.9" fill="#569cd6"/>
+    <circle cx="20.5" cy="16" r="0.9" fill="#569cd6"/>
+    <circle cx="20.5" cy="22.5" r="0.9" fill="#569cd6"/>`),
 
   ca: svgIcon(`
     <path d="M12 2L4 5v6c0 5.5 3.5 10.5 8 12 4.5-1.5 8-6.5 8-12V5L12 2z" stroke="#dcdcaa" stroke-width="1.5"/>
@@ -85,10 +91,10 @@ const NODE_ICONS = {
     <path d="M9 20h2v-2.5h2V20h2" stroke="#e03131" stroke-width="1.5"/>`),
 
   // ── Entra ID node types ──
-  entra: svgIcon(`
-    <rect x="6.5" y="11.5" width="11" height="8" rx="1.5" stroke="#0078d4" stroke-width="1.5" fill="none"/>
-    <path d="M8.5 11.5V8.2a3.5 3.5 0 0 1 7 0v3.3" stroke="#0078d4" stroke-width="1.5" fill="none"/>
-    <circle cx="12" cy="15.5" r="1.2" fill="#0078d4"/>`),
+  entra: paddedSvgIcon(`
+    <rect x="10" y="13" width="12" height="10" rx="1.8" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <path d="M12 13v-3.5a4 4 0 0 1 8 0v3.5" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <circle cx="16" cy="18" r="1.4" fill="#0078d4"/>`),
 
   entrauser: svgIcon(`
     <circle cx="12" cy="8" r="4" stroke="#50b4e8" stroke-width="1.5" fill="none"/>
@@ -249,8 +255,8 @@ export function initializeCytoscape(elements) {
         },
       },
       // Each type gets a distinct shape + color so nodes are recognizable at a glance
-      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-fit': 'none', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '34px', 'background-height': '34px' } },
-      { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-dc',       style: { shape: 'round-hexagon',  width: '80px', height: '64px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-fit': 'contain', 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '28px', 'background-height': '28px' } },
+      { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-svc',      style: { shape: 'octagon',        width: '52px', height: '52px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a', 'background-width': '30px', 'background-height': '30px' } },
@@ -266,7 +272,7 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '32px' } },
       { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '30px' } },
       { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '44px', 'background-height': '30px' } },
+      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '42px', 'background-height': '42px' } },
       {
         selector: 'node.compromised',
         style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
@@ -298,18 +304,18 @@ export function initializeCytoscape(elements) {
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
 
       // ── Entra ID node types ──
-      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-fit': 'none', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-entra',       style: { shape: 'round-rectangle', width: '86px', height: '64px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-fit': 'contain', 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '44px', 'background-height': '44px', 'corner-radius': '10px' } },
       { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#160d2c', 'border-color': '#8764b8', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#160d2c', 'border-color': '#8764b8', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entrami',     style: { shape: 'octagon',        width: '56px', height: '56px', 'background-color': '#001c18', 'border-color': '#00b294', 'background-width': '32px', 'background-height': '32px' } },
       { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',         width: '60px', height: '60px', 'background-color': '#001400', 'border-color': '#107c10', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-azurersc',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#1e0e00', 'border-color': '#e86c00', 'background-width': '34px', 'background-height': '34px' } },
 
       // ── Hybrid Identity node types ──
-      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',      width: '76px', height: '52px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-width': '44px', 'background-height': '30px' } },
-      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',       width: '60px', height: '60px', 'background-color': '#1e1400', 'border-color': '#e8a838', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',      width: '76px', height: '52px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-fit': 'contain', 'background-width': '42px', 'background-height': '42px' } },
+      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',       width: '60px', height: '60px', 'background-color': '#1e1400', 'border-color': '#e8a838', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
 
       // ── Hybrid protocol edges ──
       { selector: '.sync-edge',       style: { 'line-color': '#4fd1aa', 'target-arrow-color': '#4fd1aa', width: 2.5, 'line-style': 'dashed', 'z-index': 10 } },
