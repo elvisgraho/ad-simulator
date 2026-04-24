@@ -249,7 +249,7 @@ export function initializeCytoscape(elements) {
         },
       },
       // Each type gets a distinct shape + color so nodes are recognizable at a glance
-      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-width': '38px', 'background-height': '38px' } },
+      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747', 'background-width': '34px', 'background-height': '34px' } },
@@ -298,7 +298,7 @@ export function initializeCytoscape(elements) {
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
 
       // ── Entra ID node types ──
-      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-width': '38px', 'background-height': '38px' } },
+      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '42px', 'background-height': '32px' } },
