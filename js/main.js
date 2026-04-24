@@ -1,4 +1,4 @@
-import { initializeCytoscape, initialElements, entraInitialElements, hybridInitialElements } from './graph.js';
+import { initializeCytoscape, initialElements, entraInitialElements, hybridInitialElements, fitGraphToViewport } from './graph.js';
 import { startScenario, handleNextStep, resetSimulationState, updateButtonStates } from './engine.js';
 import { log } from './logger.js';
 import { state } from './state.js';
@@ -220,10 +220,12 @@ document.getElementById('chk-manual-mode')?.addEventListener('change', () => {})
 // Mode switching
 const MODE_ELEMENTS = { ad: initialElements, entra: entraInitialElements, hybrid: hybridInitialElements };
 const MODE_NAMES    = { ad: 'On-Premises AD', entra: 'Entra ID (Cloud)', hybrid: 'Hybrid Identity (On-Prem + Entra)' };
+const MODE_GRAPH_PADDING = { ad: 40, entra: 40, hybrid: 90 };
 
 function switchMode(newMode) {
   if (state.mode === newMode) return;
   state.mode = newMode;
+  state.graphFitPadding = MODE_GRAPH_PADDING[newMode] || 40;
   resetSimulationState(true);
   initializeCytoscape(MODE_ELEMENTS[newMode] || initialElements);
 
@@ -239,6 +241,7 @@ function switchMode(newMode) {
   });
 
   state.cy.ready(() => {
+    fitGraphToViewport();
     log(`Switched to ${MODE_NAMES[newMode] || newMode} simulation.`, 'info');
     updateButtonStates();
   });
@@ -249,7 +252,7 @@ bind('btn-mode-entra',  () => switchMode('entra'));
 bind('btn-mode-hybrid', () => switchMode('hybrid'));
 
 // Fit graph to current canvas
-bind('btn-fit-graph', () => state.cy?.fit(undefined, 40));
+bind('btn-fit-graph', () => fitGraphToViewport());
 
 // Log area drag-to-resize
 (function () {
@@ -291,8 +294,10 @@ bind('btn-fit-graph', () => state.cy?.fit(undefined, 40));
 })();
 
 // Init
+state.graphFitPadding = MODE_GRAPH_PADDING[state.mode] || 40;
 initializeCytoscape(initialElements);
 state.cy.ready(() => {
+  fitGraphToViewport();
   log('AD Simulation Environment Initialized. Ready.', 'info');
   updateButtonStates();
 });
