@@ -35,6 +35,9 @@
           <button class="mode-btn" id="btn-mode-entra" data-mode="entra">
             <i class="fas fa-cloud"></i> Entra ID
           </button>
+          <button class="mode-btn" id="btn-mode-hybrid" data-mode="hybrid">
+            <i class="fas fa-link"></i> Hybrid
+          </button>
         </div>
         <div class="toggle-row">
           <input type="checkbox" id="chk-manual-mode" />
@@ -356,6 +359,10 @@
               <i class="fas fa-play"></i> AITM via Evilginx2 (Token Capture)
               <span class="req">Requires network position / phishing delivery</span>
             </button>
+            <button id="btn-entra-legacy-auth" class="btn cat-cred">
+              <i class="fas fa-play"></i> Legacy Auth Abuse (SMTP AUTH / EWS / IMAP — MFA Bypass)
+              <span class="req">Valid credentials, legacy auth not fully blocked</span>
+            </button>
           </div>
         </details>
 
@@ -369,6 +376,10 @@
             <button id="btn-entra-consent-phish" class="btn cat-token">
               <i class="fas fa-play"></i> Consent Phishing (Malicious OAuth2 App)
               <span class="req">Requires admin consent or user consent</span>
+            </button>
+            <button id="btn-entra-implicit-token" class="btn cat-token">
+              <i class="fas fa-play"></i> Implicit Flow Token Harvest (URL Fragment / XSS / Referrer)
+              <span class="req">SPA with implicit grant enabled, any user context</span>
             </button>
           </div>
         </details>
@@ -388,6 +399,10 @@
               <i class="fas fa-play"></i> PIM Takeover → Global Admin Escalation
               <span class="req">Requires compromised PIM-eligible account</span>
             </button>
+            <button id="btn-entra-wif-abuse" class="btn cat-priv">
+              <i class="fas fa-play"></i> Workload Identity Federation Abuse (Secretless OIDC Backdoor)
+              <span class="req">Application Administrator or app Owner role</span>
+            </button>
           </div>
         </details>
 
@@ -402,6 +417,89 @@
         </details>
 
       </div><!-- /#scenarios-entra -->
+
+      <!-- Scenarios: Hybrid Identity -->
+      <div id="scenarios-hybrid" class="scenario-buttons" style="display:none">
+
+        <details class="scenario-group" open>
+          <summary><i class="fas fa-check-circle icon-legit"></i> Legitimate Actions</summary>
+          <div class="scenario-group-body">
+            <button id="btn-hybrid-delta-sync" class="btn cat-legit">
+              <i class="fas fa-play"></i> AAD Connect Delta Sync Cycle
+              <span class="req">AADConnect server, MSOL_ sync account</span>
+            </button>
+            <button id="btn-hybrid-phs" class="btn cat-legit">
+              <i class="fas fa-play"></i> Password Hash Sync (PHS) — Full Crypto Chain
+              <span class="req">AADConnect PHS, MSOL_ replication rights</span>
+            </button>
+            <button id="btn-hybrid-pta" class="btn cat-legit">
+              <i class="fas fa-play"></i> Pass-Through Authentication (PTA)
+              <span class="req">AADConnect PTA Agent, outbound Azure SvcBus</span>
+            </button>
+            <button id="btn-hybrid-writeback" class="btn cat-legit">
+              <i class="fas fa-play"></i> Password Writeback — SSPR to On-Premises
+              <span class="req">AADConnect Writeback, SSPR enabled</span>
+            </button>
+            <button id="btn-hybrid-seamless-sso" class="btn cat-legit">
+              <i class="fas fa-play"></i> Seamless SSO — AZUREADSSOACC$ Kerberos
+              <span class="req">Domain-joined device, on-prem network access</span>
+            </button>
+            <button id="btn-hybrid-cloud-krb" class="btn cat-legit">
+              <i class="fas fa-play"></i> Cloud Kerberos Trust — WHfB to On-Prem TGT
+              <span class="req">HAADJ device, WHfB enrolled, Cloud Kerberos Trust</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-skull-crossbones icon-domain"></i> Hybrid Identity Attacks</summary>
+          <div class="scenario-group-body">
+            <button id="btn-hybrid-aadconnect-dump" class="btn cat-domain">
+              <i class="fas fa-play"></i> AAD Connect DB Dump — MSOL_ + Cloud Sync Creds
+              <span class="req">Local admin on AADConnect server</span>
+            </button>
+            <button id="btn-hybrid-dcsync-msol" class="btn cat-domain">
+              <i class="fas fa-play"></i> DCSync via MSOL_ Replication Account
+              <span class="req">MSOL_ credentials (DS-Replication-Get-Changes-All)</span>
+            </button>
+            <button id="btn-hybrid-sso-silver" class="btn cat-domain">
+              <i class="fas fa-play"></i> AZUREADSSOACC$ Silver Ticket → Cloud Auth Bypass
+              <span class="req">AZUREADSSOACC$ hash (via DA / DCSync)</span>
+            </button>
+            <button id="btn-hybrid-golden-saml" class="btn cat-domain">
+              <i class="fas fa-play"></i> Golden SAML — ADFS Token-Signing Key Theft
+              <span class="req">ADFS server compromise / DKM key from AD</span>
+            </button>
+            <button id="btn-hybrid-writeback-abuse" class="btn cat-domain">
+              <i class="fas fa-play"></i> Writeback Abuse — Cloud Admin → On-Prem DA
+              <span class="req">Entra Global Admin, Writeback enabled on target</span>
+            </button>
+            <button id="btn-hybrid-pta-intercept" class="btn cat-domain">
+              <i class="fas fa-play"></i> PTA Agent Compromise — Plaintext Cred Intercept
+              <span class="req">SYSTEM on AADConnect / PTA agent host</span>
+            </button>
+          </div>
+        </details>
+
+        <details class="scenario-group">
+          <summary><i class="fas fa-link icon-domain"></i> Sync Engine &amp; Trust Attacks</summary>
+          <div class="scenario-group-body">
+            <button id="btn-hybrid-immutableid" class="btn cat-domain">
+              <i class="fas fa-play"></i> ImmutableID Manipulation — Cloud Account Takeover via Sync
+              <span class="req">Domain Admin (write mS-DS-ConsistencyGuid), any Graph read</span>
+            </button>
+            <button id="btn-hybrid-cloud-kbt-forge" class="btn cat-domain">
+              <i class="fas fa-play"></i> Cloud Kerberos Trust — krbtgt_AzureAD$ Key Theft &amp; TGT Forgery
+              <span class="req">DCSync rights, Cloud Kerberos Trust configured</span>
+            </button>
+            <button id="btn-hybrid-group-writeback" class="btn cat-domain">
+              <i class="fas fa-play"></i> Group Writeback V2 Abuse — Cloud Group → On-Prem Privilege
+              <span class="req">Entra group membership write, Group Writeback enabled</span>
+            </button>
+          </div>
+        </details>
+
+      </div><!-- /#scenarios-hybrid -->
 
       <!-- Legend: On-Prem AD -->
       <div id="legend-ad" class="legend-panel">
@@ -452,6 +550,30 @@
           <div class="legend-item"><div class="legend-line" style="background:#e03131"></div>Attack Flow</div>
         </div>
       </div><!-- /#legend-entra -->
+
+      <!-- Legend: Hybrid Identity -->
+      <div id="legend-hybrid" class="legend-panel" style="display:none">
+        <div class="ctrl-panel-title">Legend — Hybrid Identity</div>
+        <div class="legend-grid">
+          <div class="legend-item"><div class="legend-shape legend-diamond" style="border-color:#569cd6"></div>On-Prem DC</div>
+          <div class="legend-item"><div class="legend-shape legend-rect"    style="border-color:#4fd1aa"></div>AAD Connect</div>
+          <div class="legend-item"><div class="legend-shape legend-pentagon"style="background:#e8a838"></div>ADFS Server</div>
+          <div class="legend-item"><div class="legend-shape legend-octagon" style="background:#7a7a7a"></div>MSOL_ Svc Acct</div>
+          <div class="legend-item"><div class="legend-shape legend-circle"  style="border-color:#4ec9b0"></div>Synced User</div>
+          <div class="legend-item"><div class="legend-shape legend-rrect"   style="border-color:#0dcaf0"></div>HAADJ Device</div>
+          <div class="legend-item"><div class="legend-shape legend-diamond" style="border-color:#0078d4"></div>Entra ID</div>
+          <div class="legend-item"><div class="legend-shape legend-hexagon" style="background:#e03131"></div>Attacker</div>
+          <hr class="legend-sep" />
+          <div class="legend-item"><div class="legend-line" style="background:#4fd1aa"></div>AAD Sync</div>
+          <div class="legend-item"><div class="legend-line" style="background:#c084fc"></div>SAML (ADFS)</div>
+          <div class="legend-item"><div class="legend-line" style="background:#fb923c"></div>PTA Relay</div>
+          <div class="legend-item"><div class="legend-line" style="background:#4dabf7"></div>Kerberos</div>
+          <div class="legend-item"><div class="legend-line" style="background:#ffec99"></div>LDAP</div>
+          <div class="legend-item"><div class="legend-line" style="background:#fcc2d7"></div>DRSUAPI/RPC</div>
+          <div class="legend-item"><div class="legend-line" style="background:#0078d4"></div>OIDC / OAuth2</div>
+          <div class="legend-item"><div class="legend-line" style="background:#e03131"></div>Attack Flow</div>
+        </div>
+      </div><!-- /#legend-hybrid -->
 
     </div><!-- /#controls -->
 

