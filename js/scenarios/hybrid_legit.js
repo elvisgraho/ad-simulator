@@ -34,7 +34,7 @@ export const hybridDeltaSyncScenario = [
     action: () => addTemporaryEdge("hb_aadconnect", "hb_entra", "sync", "OAuth2 client_cred"),
   },
   {
-    logMessage: "AADConnect → Entra ID: HTTPS POST https://adminwebservice.microsoftonline.com/provisioningservice.svc (SOAP/WCF). Body contains ObjectDelta entries: [UpsertObject, ModifyObject]. TLS 1.2, cert-pinned.",
+    logMessage: "AADConnect → Entra ID: Sends the object delta batch to the Entra Connect synchronization service over Microsoft's internal sync/provisioning channel. This is not Microsoft Graph; it is the legacy Entra Connect connector path used by sync engines.",
     logType: "sync",
     action: () => addTemporaryEdge("hb_aadconnect", "hb_entra", "sync", "Object delta push"),
   },
@@ -46,7 +46,11 @@ export const hybridDeltaSyncScenario = [
   {
     logMessage: "Entra ID → AADConnect: 200 OK — sync confirmation. Export statistics: Success=14, Errors=0. New anchor values returned for any newly provisioned objects.",
     logType: "success",
-    action: () => { highlightElement("hb_entra"); highlightElement("hb_aadconnect"); },
+    action: () => {
+      addTemporaryEdge("hb_entra", "hb_aadconnect", "sync", "200 OK");
+      highlightElement("hb_entra");
+      highlightElement("hb_aadconnect");
+    },
   },
   {
     logMessage: "AADConnect: Updates watermark. Logs sync stats to Event Log (Application, source: Directory Synchronization). Next delta sync scheduled in 30 minutes.",
@@ -94,7 +98,7 @@ export const hybridPHSScenario = [
     action: () => highlightElement("hb_aadconnect"),
   },
   {
-    logMessage: "AADConnect → Entra ID: HTTPS POST /provisioningservice.svc with PasswordSyncMessage payload. Encrypted via TLS 1.3. Entra ID stores the 50-byte hash blob indexed by ImmutableID (objectGUID). Overwrites prior blob.",
+    logMessage: "AADConnect → Entra ID: Sends the Password Hash Sync payload over the Entra Connect password-sync channel (internal sync service, not Microsoft Graph). Entra ID stores the 50-byte hash blob indexed by ImmutableID (objectGUID) and overwrites the prior blob.",
     logType: "sync",
     action: () => addTemporaryEdge("hb_aadconnect", "hb_entra", "sync", "PasswordSyncMsg"),
   },
@@ -114,7 +118,7 @@ export const hybridPHSScenario = [
 export const hybridPTAScenario = [
   {
     scenarioName: "Hybrid: Pass-Through Authentication (PTA) Flow",
-    logMessage: "Alice at WKSTN-HYB submits credentials to Entra ID sign-in page: POST https://login.microsoftonline.com/corp.onmicrosoft.com/login (UPN: alice@corp.com, password: [cleartext over TLS]). Entra ID detects corp.com domain is PTA-enabled (not PHS, not federated).",
+    logMessage: "Alice at WKSTN-HYB starts an interactive sign-in at login.microsoftonline.com. After the authorize-stage redirect, she submits credentials on the ESTS web form (internal sign-in UX, not Microsoft Graph). Entra ID detects corp.com is PTA-enabled (not PHS, not federated).",
     logType: "oidc",
     action: () => { highlightElement("hb_user1"); highlightElement("hb_dev1"); },
   },
@@ -129,9 +133,12 @@ export const hybridPTAScenario = [
     action: () => highlightElement("hb_entra"),
   },
   {
-    logMessage: "Entra ID → Azure Service Bus: Publishes encrypted auth request to tenant-specific Service Bus relay namespace. Message TTL: 90 seconds. Queue type: PTA authentication channel (authenticated with Entra service token).",
+    logMessage: "Entra ID → Azure Service Bus: Publishes the encrypted PTA auth request to the tenant-specific Service Bus relay namespace. This is Entra's private PTA transport, not Microsoft Graph or the public OAuth token endpoint.",
     logType: "http",
-    action: () => highlightElement("hb_entra"),
+    action: () => {
+      addTemporaryEdge("hb_entra", "hb_aadconnect", "http", "Encrypted auth request");
+      highlightElement("hb_entra");
+    },
   },
   {
     logMessage: "AADConnect PTA Agent (on hb_aadconnect, running as SYSTEM): Long-polls Azure Service Bus outbound HTTPS connection (port 443). Receives encrypted auth request from queue.",
@@ -191,7 +198,10 @@ export const hybridPasswordWritebackScenario = [
   {
     logMessage: "Entra ID → Azure Service Bus: Publishes PasswordResetRequest message to AADConnect writeback channel. Payload encrypted (AES-256, per-request key). Message: {ImmutableID, newPasswordHash, requestId, timestamp}.",
     logType: "sync",
-    action: () => highlightElement("hb_entra"),
+    action: () => {
+      addTemporaryEdge("hb_entra", "hb_aadconnect", "sync", "PasswordResetRequest");
+      highlightElement("hb_entra");
+    },
   },
   {
     logMessage: "AADConnect Password Writeback Agent (outbound polling): Receives PasswordResetRequest from Service Bus. Validates HMAC signature on message (prevents tampering). Decrypts payload.",

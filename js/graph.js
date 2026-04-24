@@ -7,6 +7,38 @@ function svgIcon(innerPaths) {
   )}`;
 }
 
+function protocolToEdgeClass(protocol) {
+  const normalized = String(protocol || '').trim().toLowerCase();
+  const aliasMap = [
+    [/^attack-flow$/, 'attack-flow-edge'],
+    [/sync/, 'sync-edge'],
+    [/saml/, 'saml-edge'],
+    [/pta/, 'pta-edge'],
+    [/oidc/, 'oidc-edge'],
+    [/^prt$/, 'prt-edge'],
+    [/^tpm$/, 'tpm-edge'],
+    [/msgraph/, 'msgraph-edge'],
+    [/imds/, 'imds-edge'],
+    [/azurerm/, 'azurerm-edge'],
+    [/drsuapi/, 'drsuapi-edge'],
+    [/kerberos/, 'kerberos-edge'],
+    [/ldap/, 'ldap-edge'],
+    [/ntlm/, 'ntlm-edge'],
+    [/dns/, 'dns-edge'],
+    [/(llmnr|nbt-?ns)/, 'dns-edge'],
+    [/(rpc|samr|nrpc|rprn|efsrpc|wmi|dcom)/, 'rpc-edge'],
+    [/\bsmb\b/, 'smb-edge'],
+    [/(http|session|trigger|sql|tds|db access|auth)/, 'http-edge'],
+  ];
+
+  for (const [pattern, edgeClass] of aliasMap) {
+    if (pattern.test(normalized)) return edgeClass;
+  }
+
+  const slug = normalized.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug ? `${slug}-edge` : 'edge';
+}
+
 const NODE_ICONS = {
   dc: svgIcon(`
     <rect x="2" y="3" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
@@ -328,7 +360,7 @@ export function highlightElement(id, duration = stepDelay * 0.8, className = 'hi
 }
 
 export function addTemporaryEdge(sourceId, targetId, protocol, label = '', duration = stepDelay * 0.9) {
-  const edgeClass = `temp-edge ${protocol.toLowerCase()}-edge`;
+  const edgeClass = `temp-edge ${protocolToEdgeClass(protocol)}`;
   const edgeId = `temp-${sourceId}-${targetId}-${Date.now()}-${Math.random().toString(16).substring(2)}`;
   const src = state.cy?.getElementById(sourceId);
   const tgt = state.cy?.getElementById(targetId);
