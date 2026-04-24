@@ -208,8 +208,8 @@ export const hybridGoldenSAMLScenario = [
 // ── 5. Password Writeback Abuse — Cloud Admin → On-Prem DA Pivot ──────────────
 export const hybridWritebackAbuseScenario = [
   {
-    scenarioName: "Attack: Password Writeback Abuse — Cloud Global Admin → On-Premises Domain Admin",
-    logMessage: "Attacker holds Entra Global Admin access (via PRT theft, Token replay, or compromised MFA). Goal: leverage Password Writeback to reset on-prem privileged account password → pivot from cloud to on-prem full compromise.",
+    scenarioName: "Attack: Password Writeback Abuse — Cloud Global Admin → On-Premises Tier-0 Pivot",
+    logMessage: "Attacker holds Entra Global Admin access (via PRT theft, token replay, or compromised MFA). Goal: leverage password writeback against a synced high-privilege on-prem account that is NOT protected by AdminSDHolder, then pivot deeper on-prem.",
     logType: "attack",
     action: () => { highlightElement("hb_attacker"); highlightElement("hb_entra"); },
   },
@@ -219,7 +219,7 @@ export const hybridWritebackAbuseScenario = [
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Graph user enum"),
   },
   {
-    logMessage: "Identified: DomainAdmin@corp.com — onPremisesSyncEnabled=true, onPremisesSamAccountName='DomainAdmin'. This user is both an on-prem Domain Admin AND synced to Entra. Writeback is configured — password changes in cloud propagate to AD.",
+    logMessage: "Identified: tier0-ops@corp.com — onPremisesSyncEnabled=true, onPremisesSamAccountName='tier0-ops'. This account is synced, has local admin on the AADConnect server and backup infrastructure, but is not in a protected AD group. That makes it a realistic writeback target; built-in protected groups often cannot be reset through writeback.",
     logType: "attack",
     action: () => highlightElement("hb_attacker"),
   },
@@ -229,12 +229,12 @@ export const hybridWritebackAbuseScenario = [
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Confirm writeback"),
   },
   {
-    logMessage: "Admin password reset via Graph API: POST https://graph.microsoft.com/v1.0/users/DomainAdmin@corp.com/authentication/methods/28c10230-6103-485e-b985-444c60001490/resetPassword. Body: {\"newPassword\": \"Attacker@NewP@ss1!\"}. Auth: Bearer <Global Admin token>.",
+    logMessage: "Admin password reset via Graph API: POST https://graph.microsoft.com/v1.0/users/tier0-ops@corp.com/authentication/methods/28c10230-6103-485e-b985-444c60001490/resetPassword. Body: {\"newPassword\": \"Attacker@NewP@ss1!\"}. Auth: Bearer <Global Admin token>.",
     logType: "attack",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Admin reset API"),
   },
   {
-    logMessage: "Entra ID: Request validated — caller is Global Admin ✓, target has writeback flag ✓. Dispatches PasswordResetRequest to AADConnect via Azure Service Bus (encrypted, HMAC-signed).",
+    logMessage: "Entra ID: Request validated — caller is Global Admin, target is synced, and password writeback is enabled. The writeback service encrypts the new password and relays the reset request to the on-prem agent over the tenant-specific Service Bus channel.",
     logType: "sync",
     action: () => {
       addTemporaryEdge("hb_entra", "hb_aadconnect", "sync", "PasswordResetRequest");
@@ -242,27 +242,28 @@ export const hybridWritebackAbuseScenario = [
     },
   },
   {
-    logMessage: "AADConnect Writeback Agent: Receives and decrypts request. No alert generated at this stage (this is legitimate writeback infrastructure, no anomaly detection by default). Applies LDAP password change to DC01: unicodePwd = new_password for CN=DomainAdmin.",
+    logMessage: "AADConnect Writeback Agent: Receives and decrypts request, then performs the on-prem password set through the normal AD path. This is legitimate writeback infrastructure, so many environments alert weakly unless they correlate the originating Entra admin action.",
     logType: "ldap",
-    action: () => { addTemporaryEdge("hb_aadconnect", "hb_dc01", "ldap", "unicodePwd change"); highlightElement("hb_aadconnect"); },
+    action: () => { addTemporaryEdge("hb_aadconnect", "hb_dc01", "ldap", "AD password set"); highlightElement("hb_aadconnect"); },
   },
   {
-    logMessage: "DC01: Password changed for CORP\\DomainAdmin. Existing Kerberos TGTs remain valid until expiry (attack window). NTLM sessions using old hash will fail immediately. New password effective immediately for new authentications.",
+    logMessage: "DC01: Password changed for CORP\\tier0-ops. Existing Kerberos TGTs remain valid until expiry, but new authentications now accept the attacker-chosen password immediately.",
     logType: "ldap",
     action: () => highlightElement("hb_dc01"),
   },
   {
-    logMessage: "Attacker authenticates on-prem: Impacket psexec.py CORP/DomainAdmin:'Attacker@NewP@ss1!'@dc01.corp.local. SMB auth → exec shell on DC01 as Domain Admin.",
+    logMessage: "Attacker authenticates on-prem as the reset account: Impacket psexec.py CORP/tier0-ops:'Attacker@NewP@ss1!'@aadconnect.corp.local. Because tier0-ops is local admin on the sync host, the attacker lands on AADConnect and can continue to dump MSOL_ credentials or PTA material.",
     logType: "attack",
-    action: () => addTemporaryEdge("hb_attacker", "hb_dc01", "smb", "PsExec as DA"),
+    action: () => addTemporaryEdge("hb_attacker", "hb_aadconnect", "smb", "PsExec to AADConnect"),
   },
   {
-    logMessage: "IMPACT: Full on-prem domain compromise achieved from a cloud Global Admin token. Attack chain: Cloud account compromise → Password Writeback → On-prem DA. Mitigation: Block writeback for privileged on-prem accounts using scoping filters in AADConnect, or move privileged accounts to cloud-only.",
+    logMessage: "IMPACT: Cloud Global Admin becomes a high-privilege on-prem foothold. In realistic environments this is usually a pivot into AADConnect, backup, PKI, or virtualization admin paths first; from there, full domain compromise is often one more step away. Mitigation: keep privileged on-prem identities out of sync scope and out of password-writeback scope.",
     logType: "attack",
     action: () => {
-      addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Domain Admin shell");
+      addTemporaryEdge("hb_attacker", "hb_aadconnect", "attack-flow", "Tier-0 foothold");
+      addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Likely next step");
       highlightElement("hb_attacker");
-      highlightElement("hb_dc01");
+      highlightElement("hb_aadconnect");
       highlightElement("hb_entra");
     },
   },
@@ -377,7 +378,7 @@ export const hybridImmutableIDTakeoverScenario = [
     action: () => highlightElement("hb_entra"),
   },
   {
-    logMessage: "IMPACT: Any on-prem Domain Admin can silently take over any cloud-only Entra account — including Break Glass Global Admins — if those accounts fall within the AADConnect sync scope. The ImmutableID is non-secret and readable by any Graph API caller. Complete cloud/on-prem security boundary collapse via sync engine. This attack requires NO cloud credentials initially.",
+    logMessage: "IMPACT: Any on-prem Domain Admin can silently take over any cloud-only Entra account — including Break Glass Global Admins — if those accounts fall within the AADConnect sync scope. The ImmutableID is non-secret and typically exposed to accounts with ordinary directory-read access. Complete cloud/on-prem security boundary collapse via sync engine. This attack requires NO cloud credentials initially.",
     logType: "attack",
     action: () => { addTemporaryEdge("hb_attacker", "hb_entra", "attack-flow", "GA takeover via sync"); highlightElement("hb_m365"); },
   },
@@ -441,23 +442,23 @@ export const hybridCloudKerberosForgeScenario = [
 // ── 9. Group Writeback Abuse — Cloud Group Member → On-Premises Access ────────
 export const hybridGroupWritebackAbuseScenario = [
   {
-    scenarioName: "Attack: Group Writeback V2 Abuse — Cloud Group Membership → On-Premises Privilege",
-    logMessage: "Attacker Goal: Leverage AADConnect Group Writeback V2 to add attacker-controlled identity to a cloud security group that is written back to on-prem AD — gaining on-prem group membership (and thus on-prem resource access) via cloud identity compromise alone.",
+    scenarioName: "Attack: Cloud Group Writeback Abuse — Entra Cloud Sync → On-Premises Privilege",
+    logMessage: "Attacker Goal: Abuse cloud-managed groups that are provisioned back to on-prem AD, adding an attacker-controlled identity to a written-back security group and inheriting on-prem access from its nesting or ACLs.",
     logType: "attack",
     action: () => highlightElement("hb_attacker"),
   },
   {
-    logMessage: "Background: Group Writeback V2 (AADConnect 2.0+) syncs Entra security groups and M365 groups back to on-prem AD as universal security groups. On-prem IT may then nest these written-back groups inside on-prem privileged groups or grant them on-prem resource ACLs.",
+    logMessage: "Background: Microsoft now recommends group writeback through Entra Cloud Sync. Group Writeback V2 in Entra Connect Sync was deprecated and unsupported as of August 6, 2025. The attack concept is still real because cloud-managed groups can still be provisioned into AD and then nested into sensitive on-prem access paths.",
     logType: "info",
     action: () => highlightElement("hb_aadconnect"),
   },
   {
-    logMessage: "Enumerate written-back groups: GET https://graph.microsoft.com/v1.0/groups?$filter=onPremisesSyncEnabled eq null and securityEnabled eq true&$select=displayName,id,onPremisesSecurityIdentifier,writebackConfiguration. Groups with writebackConfiguration.isEnabled=true are synced to on-prem AD.",
+    logMessage: "Enumerate candidate written-back groups: list cloud security groups in Graph, then confirm writeback state from the Entra admin center or Graph beta where groupWritebackConfiguration is actually exposed. Using v1.0 with writebackConfiguration was inaccurate; the writeback property family is documented under /beta.",
     logType: "msgraph",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Graph group writeback enum"),
   },
   {
-    logMessage: "Target identified: cloud group 'IT-Server-Admins' (securityEnabled=true, writebackConfiguration.isEnabled=true, onPremisesSecurityIdentifier=S-1-5-21-...-1125). On-prem verification: Get-ADGroup 'IT-Server-Admins' → members include on-prem 'Local Admins' nested group → local admin on all corp servers.",
+    logMessage: "Target identified: cloud security group 'IT-Server-Admins', confirmed as provisioned into on-prem AD. On-prem verification: Get-ADGroup 'IT-Server-Admins' shows it is nested into a server-admin path that grants broad local admin rights.",
     logType: "ldap",
     action: () => addTemporaryEdge("hb_attacker", "hb_dc01", "ldap", "on-prem group ACL check"),
   },
@@ -467,7 +468,7 @@ export const hybridGroupWritebackAbuseScenario = [
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "POST /groups/members (add self)"),
   },
   {
-    logMessage: "Entra ID: Group membership updated. Audit log: 'Add member to group — IT-Server-Admins'. AADConnect delta sync (next 30 min cycle or triggered): LDAP polls DC, detects group membership change. Export stage: patches on-prem 'IT-Server-Admins' universal security group memberOf to include attacker user's on-prem DN.",
+    logMessage: "Entra ID: Group membership updated. Audit log: 'Add member to group — IT-Server-Admins'. The sync/provisioning engine then pushes the updated group membership into on-prem AD, where downstream ACLs and nested group paths start honoring it.",
     logType: "sync",
     action: () => addTemporaryEdge("hb_aadconnect", "hb_dc01", "sync", "Group member writeback"),
   },
@@ -487,7 +488,7 @@ export const hybridGroupWritebackAbuseScenario = [
     action: () => highlightElement("hb_entra"),
   },
   {
-    logMessage: "IMPACT: Cloud identity compromise → on-prem server access, purely via group writeback. The attack surface of on-prem AD now includes all Entra administrators who can modify written-back groups. Mitigation: audit all written-back groups for on-prem ACL exposure; implement approval workflows for written-back group membership changes; use 'Owners-only can add members' policy in Entra group settings; monitor AADConnect export operations in event log.",
+    logMessage: "IMPACT: Cloud identity compromise → on-prem server access through supported cloud-to-AD provisioning. The attack surface of on-prem AD now includes whoever can modify those cloud-managed groups. Mitigation: audit written-back groups for on-prem privilege, require approvals for sensitive group changes, and monitor both Entra audit logs and sync exports together.",
     logType: "attack",
     action: () => { addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Cloud→on-prem pivot"); highlightElement("hb_m365"); },
   },

@@ -65,7 +65,7 @@ import {
   entraPassThePRTScenario, entraConsentPhishingScenario,
   entraAppCredAbuseScenario, entraIMDSCredTheftScenario,
   entraPIMTakeoverScenario, entraIllicitConsentScenario,
-  entraLegacyAuthAbuseScenario, entraImplicitTokenHarvestScenario,
+  entraImplicitTokenHarvestScenario,
   entraWIFAbuseScenario,
 } from './scenarios/entra_attacks.js';
 
@@ -173,8 +173,6 @@ const ENTRA_SCENARIO_MAP = {
   'btn-entra-imds-theft':    entraIMDSCredTheftScenario,
   'btn-entra-pim-takeover':  entraPIMTakeoverScenario,
   'btn-entra-wif-abuse':     entraWIFAbuseScenario,
-  // Initial Access (legacy)
-  'btn-entra-legacy-auth':   entraLegacyAuthAbuseScenario,
   // Persistence
   'btn-entra-illicit-consent': entraIllicitConsentScenario,
 };
