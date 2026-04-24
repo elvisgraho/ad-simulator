@@ -189,7 +189,7 @@ export const hybridGoldenSAMLScenario = [
     action: () => highlightElement("hb_attacker"),
   },
   {
-    logMessage: "Submit Golden SAML to Entra ID federation endpoint: POST https://login.microsoftonline.com/<tenantId>/saml2. Form body: SAMLResponse=<base64-SAML-XML>. Entra verifies signature against registered ADFS signing cert thumbprint — SIGNATURE VALID (attacker used real private key).",
+    logMessage: "Submit Golden SAML to the tenant's Entra federation sign-in endpoint under login.microsoftonline.com. Form body contains SAMLResponse=<base64-SAML-XML>. Entra verifies the signature against the registered ADFS signing certificate thumbprint — SIGNATURE VALID because the attacker used the real private key.",
     logType: "saml",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "saml", "Forged SAML POST"),
   },
@@ -214,7 +214,7 @@ export const hybridWritebackAbuseScenario = [
     action: () => { highlightElement("hb_attacker"); highlightElement("hb_entra"); },
   },
   {
-    logMessage: "Enumerate synced high-privilege on-prem accounts via MS Graph API: GET https://graph.microsoft.com/v1.0/users?$filter=onPremisesSyncEnabled eq true&$select=displayName,userPrincipalName,onPremisesSamAccountName,assignedRoles. Authorization: Bearer <stolen-access-token>.",
+    logMessage: "Enumerate synced candidates via Microsoft Graph: GET https://graph.microsoft.com/v1.0/users?$filter=onPremisesSyncEnabled eq true&$select=id,displayName,userPrincipalName,onPremisesSamAccountName. Then correlate them with privileged assignments from GET https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?$expand=principal. Authorization: Bearer <stolen-access-token>.",
     logType: "msgraph",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Graph user enum"),
   },
@@ -224,7 +224,7 @@ export const hybridWritebackAbuseScenario = [
     action: () => highlightElement("hb_attacker"),
   },
   {
-    logMessage: "Verify writeback enabled for tenant: GET https://graph.microsoft.com/v1.0/organization → check onPremisesPasswordSyncEnabled: true. Confirm SSPR writeback: GET /organization/<id>/settings.",
+    logMessage: "Attacker already knows this is a hybrid tenant with password writeback configured from prior admin knowledge or previous successful reset activity. There isn't a single clean public Microsoft Graph v1.0 boolean that definitively exposes all tenant writeback state in this attack path.",
     logType: "msgraph",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "http", "Confirm writeback"),
   },
@@ -236,7 +236,10 @@ export const hybridWritebackAbuseScenario = [
   {
     logMessage: "Entra ID: Request validated — caller is Global Admin ✓, target has writeback flag ✓. Dispatches PasswordResetRequest to AADConnect via Azure Service Bus (encrypted, HMAC-signed).",
     logType: "sync",
-    action: () => highlightElement("hb_entra"),
+    action: () => {
+      addTemporaryEdge("hb_entra", "hb_aadconnect", "sync", "PasswordResetRequest");
+      highlightElement("hb_entra");
+    },
   },
   {
     logMessage: "AADConnect Writeback Agent: Receives and decrypts request. No alert generated at this stage (this is legitimate writeback infrastructure, no anomaly detection by default). Applies LDAP password change to DC01: unicodePwd = new_password for CN=DomainAdmin.",
@@ -256,7 +259,12 @@ export const hybridWritebackAbuseScenario = [
   {
     logMessage: "IMPACT: Full on-prem domain compromise achieved from a cloud Global Admin token. Attack chain: Cloud account compromise → Password Writeback → On-prem DA. Mitigation: Block writeback for privileged on-prem accounts using scoping filters in AADConnect, or move privileged accounts to cloud-only.",
     logType: "attack",
-    action: () => { addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Domain Admin shell"); highlightElement("hb_user1"); },
+    action: () => {
+      addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Domain Admin shell");
+      highlightElement("hb_attacker");
+      highlightElement("hb_dc01");
+      highlightElement("hb_entra");
+    },
   },
 ];
 

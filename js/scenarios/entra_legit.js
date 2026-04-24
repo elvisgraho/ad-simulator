@@ -20,9 +20,9 @@ export const entraInteractiveSignInScenario = [
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "Alice → Entra ID: POST /login (UPN: alice@corp.onmicrosoft.com + password). Transmitted over TLS 1.3. Entra ID validates credential hash against directory store.",
+    logMessage: "Alice → Entra ID: Submits credentials on the interactive sign-in page hosted under login.microsoftonline.com after the /oauth2/v2.0/authorize redirect. This credential form POST is part of ESTS' web UX, not Microsoft Graph or a stable public OAuth resource path. Entra ID validates the password against the directory store.",
     logType: "oidc",
-    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "POST /login"),
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "Interactive sign-in form"),
   },
   {
     logMessage: "Entra ID: Credentials valid. Sign-in risk ML evaluation: Low. User requires MFA per policy — dispatches push notification to Microsoft Authenticator app (number matching enabled).",
@@ -195,9 +195,9 @@ export const entraConditionalAccessScenario = [
     action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "GET /authorize"),
   },
   {
-    logMessage: "Bob → Entra ID: POST /login (UPN + password). MFA triggered — Authenticator push. Bob approves.",
+    logMessage: "Bob → Entra ID: Submits credentials on the interactive login.microsoftonline.com sign-in form after the /oauth2/v2.0/authorize redirect. This is ESTS web UX traffic rather than a public Microsoft Graph endpoint. MFA is then triggered and Bob approves.",
     logType: "oidc",
-    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "Auth + MFA"),
+    action: () => addTemporaryEdge("ent_dev2", "ent_tenant", "oidc", "Interactive auth + MFA"),
   },
   {
     logMessage: "Entra ID → Conditional Access Engine: Evaluating policies for (Bob, LAPTOP-02, SharePoint Online, corp network, sign-in risk: Low).",
@@ -240,7 +240,7 @@ export const entraManagedIdentityScenario = [
     action: () => { highlightElement("ent_svc"); highlightElement("ent_mi"); },
   },
   {
-    logMessage: "App → Azure IMDS: GET http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net (Header: Metadata: true). IMDS is a link-local endpoint at the hypervisor — not reachable from outside the VM.",
+    logMessage: "App → Azure IMDS: GET http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/ (Header: Metadata: true). IMDS is a link-local endpoint at the hypervisor — not reachable from outside the VM.",
     logType: "imds",
     action: () => addTemporaryEdge("ent_svc", "ent_mi", "imds", "MI token req"),
   },
@@ -265,7 +265,7 @@ export const entraManagedIdentityScenario = [
     action: () => addTemporaryEdge("ent_mi", "ent_svc", "imds", "token returned"),
   },
   {
-    logMessage: "App → Key Vault: GET https://corp-kv.vault.azure.net/secrets/db-connstr?api-version=7.4 (Authorization: Bearer <MI_access_token>). Azure RBAC data-plane call — audience: vault.azure.net, enforced via Azure RBAC (not Entra app permissions).",
+    logMessage: "App → Key Vault: GET https://corp-kv.vault.azure.net/secrets/db-connstr?api-version=2025-07-01 (Authorization: Bearer <MI_access_token>). Azure RBAC data-plane call — audience: vault.azure.net, enforced via Azure RBAC (not Entra app permissions).",
     logType: "azurerm",
     action: () => addTemporaryEdge("ent_svc", "ent_kv", "azurerm", "GET /secrets/db-connstr"),
   },
@@ -290,7 +290,7 @@ export const entraPIMActivationScenario = [
     action: () => highlightElement("ent_admin"),
   },
   {
-    logMessage: "EntraAdmin → Entra ID PIM API: GET /privilegedAccess/aadRoles/resources/{tenantId}/roleAssignments?$filter=type eq 'Eligible' and subject/id eq '{adminObjectId}'. Lists eligible roles.",
+    logMessage: "EntraAdmin → Microsoft Graph PIM API: GET https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq '{adminObjectId}' and roleDefinitionId eq '62e90394-69f5-4237-9190-012177145e10'. Lists the current user's eligible Microsoft Entra role schedule instances using the current PIM endpoint family.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "GET eligible roles"),
   },
@@ -300,7 +300,7 @@ export const entraPIMActivationScenario = [
     action: () => highlightElement("ent_tenant"),
   },
   {
-    logMessage: "EntraAdmin → Entra PIM: POST /privilegedAccess/aadRoles/roleAssignmentRequests { roleDefinitionId: GlobalAdmin, type: UserAdd, assignmentState: Active, justification: 'Emergency patch deployment — INC-7741', scheduleInfo: { duration: PT2H } }.",
+    logMessage: "EntraAdmin → Microsoft Graph PIM API: POST https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests { action: 'selfActivate', principalId: <adminObjectId>, roleDefinitionId: '62e90394-69f5-4237-9190-012177145e10', directoryScopeId: '/', justification: 'Emergency patch deployment - INC-7741', scheduleInfo: { startDateTime: <now>, expiration: { type: 'afterDuration', duration: 'PT2H' } } }.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_admin", "ent_tenant", "oidc", "activation req"),
   },
@@ -360,7 +360,7 @@ export const entraTpmAttestationScenario = [
     action: () => highlightElement("ent_dev1"),
   },
   {
-    logMessage: "LAPTOP-01 → Entra ID: POST /devices/{deviceId}/registeredKeys { attestationStatement: 'TPM20', keyType: 'RSA2048', usage: 'NGC', aikCert: <AIK chain PEM>, creationData: <TPM2B_CREATION_DATA (PCR digest, clock, firmware version)>, certifyInfo: <TPM2B_ATTEST>, certifyInfoSignature: <AIK-signed ECDSA-256 quote over certifyInfo> }.",
+    logMessage: "LAPTOP-01 → Entra device registration service: Submits the WHfB key registration and TPM attestation payload to the Entra device registration endpoint family (internal device-registration flow, not Microsoft Graph). Payload includes attestationStatement='TPM20', usage='NGC', AIK/EK chain material, creationData, certifyInfo, and certifyInfoSignature.",
     logType: "prt",
     action: () => addTemporaryEdge("ent_dev1", "ent_tenant", "tpm", "WHfB key reg + attestation"),
   },

