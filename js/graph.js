@@ -97,6 +97,21 @@ const NODE_ICONS = {
   azurersc: svgIcon(`
     <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="#e86c00" stroke-width="1.5" fill="none"/>
     <path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="#e86c00" stroke-width="1" stroke-dasharray="2 2"/>`),
+
+  // ── Hybrid Identity node types ──
+  aadconnect: svgIcon(`
+    <rect x="2" y="5" width="20" height="14" rx="1.5" stroke="#4fd1aa" stroke-width="1.5"/>
+    <path d="M7 10.5a4.5 4.5 0 0 1 3.5-3.5" stroke="#4fd1aa" stroke-width="1.5"/>
+    <path d="M17 13.5a4.5 4.5 0 0 1-3.5 3.5" stroke="#4fd1aa" stroke-width="1.5"/>
+    <polyline points="14.5,7.5 16.5,9 14.5,9" stroke="#4fd1aa" stroke-width="1.2"/>
+    <polyline points="9.5,16.5 7.5,15 9.5,15" stroke="#4fd1aa" stroke-width="1.2"/>`),
+
+  adfs: svgIcon(`
+    <path d="M12 2L3 6v5c0 5.5 4 10.5 9 12 5-1.5 9-6.5 9-12V6L12 2z" stroke="#e8a838" stroke-width="1.5"/>
+    <path d="M9 12h6" stroke="#e8a838" stroke-width="1.5"/>
+    <circle cx="9" cy="12" r="1" fill="#e8a838"/>
+    <circle cx="15" cy="12" r="1" fill="#e8a838"/>
+    <path d="M12 7v3M12 14v3" stroke="#e8a838" stroke-width="1.2"/>`),
 };
 
 export const initialElements = [
@@ -140,6 +155,23 @@ export const entraInitialElements = [
 
   // ── Threat actor ──
   { data: { id: 'ent_attacker', name: 'Attacker', type: 'attacker', ip: '185.220.x.x' }, classes: 'cy-node cy-node-attacker', position: { x: 370, y: 450 } },
+];
+
+export const hybridInitialElements = [
+  // ── On-Premises ──
+  { data: { id: 'hb_dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 195, y: 80 } },
+  { data: { id: 'hb_adfs', name: 'ADFS01', type: 'adfs', fqdn: 'adfs.corp.local', ip: '10.1.2.20' }, classes: 'cy-node cy-node-adfs', position: { x: 55, y: 195 } },
+  { data: { id: 'hb_aadconnect', name: 'AADConnect', type: 'aadconnect', fqdn: 'aadsync.corp.local', ip: '10.1.2.10', note: 'PHS/PTA/Writeback Agent' }, classes: 'cy-node cy-node-aadconnect', position: { x: 185, y: 245 } },
+  { data: { id: 'hb_msol', name: 'MSOL_sync', type: 'svc', sam: 'CORP\\MSOL_ab12cd34', ntlm_hash: 'MSOLHash', note: 'DS-Replication-Get-Changes-All ACE' }, classes: 'cy-node cy-node-svc', position: { x: 335, y: 190 } },
+  { data: { id: 'hb_user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', upn: 'alice@corp.com', synced: true, ip: '10.1.10.50' }, classes: 'cy-node cy-node-user', position: { x: 60, y: 370 } },
+  { data: { id: 'hb_dev1', name: 'WKSTN-HYB', type: 'host', fqdn: 'wkstn-hyb.corp.local', haadj: true, tpm: true, ip: '10.1.10.110' }, classes: 'cy-node cy-node-host', position: { x: 215, y: 405 } },
+
+  // ── Cloud (Entra ID) ──
+  { data: { id: 'hb_entra', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 590, y: 95 } },
+  { data: { id: 'hb_m365', name: 'M365 / SharePoint', type: 'entrarsc', url: 'https://corp.sharepoint.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 735, y: 220 } },
+
+  // ── Threat Actor ──
+  { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 430, y: 335 } },
 ];
 
 export function initializeCytoscape(elements) {
@@ -191,6 +223,7 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '36px' } },
       { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '34px' } },
       { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '36px' } },
+      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '46px', 'background-height': '34px' } },
       {
         selector: 'node.compromised',
         style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
@@ -230,6 +263,16 @@ export function initializeCytoscape(elements) {
       { selector: '.cy-node-entrami',     style: { shape: 'octagon',       width: '50px', height: '50px', 'background-color': '#001c18', 'border-color': '#00b294' } },
       { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',        width: '54px', height: '54px', 'background-color': '#001400', 'border-color': '#107c10' } },
       { selector: '.cy-node-azurersc',   style: { shape: 'hexagon',       width: '54px', height: '54px', 'background-color': '#1e0e00', 'border-color': '#e86c00' } },
+
+      // ── Hybrid Identity node types ──
+      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',     width: '64px', height: '44px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-width': '46px', 'background-height': '34px' } },
+      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',      width: '54px', height: '54px', 'background-color': '#1e1400', 'border-color': '#e8a838' } },
+
+      // ── Hybrid protocol edges ──
+      { selector: '.sync-edge',       style: { 'line-color': '#4fd1aa', 'target-arrow-color': '#4fd1aa', width: 2.5, 'line-style': 'dashed', 'z-index': 10 } },
+      { selector: '.saml-edge',       style: { 'line-color': '#c084fc', 'target-arrow-color': '#c084fc', width: 2.5,                         'z-index': 10 } },
+      { selector: '.pta-edge',        style: { 'line-color': '#fb923c', 'target-arrow-color': '#fb923c', width: 2,   'line-style': 'dashed', 'z-index': 10 } },
+      { selector: '.attack-flow-edge',style: { 'line-color': '#e03131', 'target-arrow-color': '#e03131', width: 3,                           'z-index': 12 } },
 
       // ── Entra protocol edges ──
       { selector: '.oidc-edge',    style: { 'line-color': '#0078d4', 'target-arrow-color': '#0078d4', width: 2.5, 'z-index': 10 } },

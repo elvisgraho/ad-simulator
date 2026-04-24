@@ -1,4 +1,4 @@
-import { initializeCytoscape, initialElements, entraInitialElements } from './graph.js';
+import { initializeCytoscape, initialElements, entraInitialElements, hybridInitialElements } from './graph.js';
 import { startScenario, handleNextStep, resetSimulationState, updateButtonStates } from './engine.js';
 import { log } from './logger.js';
 import { state } from './state.js';
@@ -65,7 +65,25 @@ import {
   entraPassThePRTScenario, entraConsentPhishingScenario,
   entraAppCredAbuseScenario, entraIMDSCredTheftScenario,
   entraPIMTakeoverScenario, entraIllicitConsentScenario,
+  entraLegacyAuthAbuseScenario, entraImplicitTokenHarvestScenario,
+  entraWIFAbuseScenario,
 } from './scenarios/entra_attacks.js';
+
+// Hybrid Identity legitimate scenarios
+import {
+  hybridDeltaSyncScenario, hybridPHSScenario, hybridPTAScenario,
+  hybridPasswordWritebackScenario, hybridSeamlessSSOScenario,
+  hybridCloudKerberosTrustScenario,
+} from './scenarios/hybrid_legit.js';
+
+// Hybrid Identity attack scenarios
+import {
+  hybridAADConnectDumpScenario, hybridDCSyncViaMSOLScenario,
+  hybridSSOSilverTicketScenario, hybridGoldenSAMLScenario,
+  hybridWritebackAbuseScenario, hybridPTAInterceptionScenario,
+  hybridImmutableIDTakeoverScenario, hybridCloudKerberosForgeScenario,
+  hybridGroupWritebackAbuseScenario,
+} from './scenarios/hybrid_attacks.js';
 
 // Button → scenario mapping
 const SCENARIO_MAP = {
@@ -149,12 +167,38 @@ const ENTRA_SCENARIO_MAP = {
   // Token & Session
   'btn-entra-prt-theft':     entraPassThePRTScenario,
   'btn-entra-consent-phish': entraConsentPhishingScenario,
+  'btn-entra-implicit-token': entraImplicitTokenHarvestScenario,
   // Privilege Escalation
   'btn-entra-app-cred':      entraAppCredAbuseScenario,
   'btn-entra-imds-theft':    entraIMDSCredTheftScenario,
   'btn-entra-pim-takeover':  entraPIMTakeoverScenario,
+  'btn-entra-wif-abuse':     entraWIFAbuseScenario,
+  // Initial Access (legacy)
+  'btn-entra-legacy-auth':   entraLegacyAuthAbuseScenario,
   // Persistence
   'btn-entra-illicit-consent': entraIllicitConsentScenario,
+};
+
+// Hybrid Identity scenario map
+const HYBRID_SCENARIO_MAP = {
+  // Legitimate
+  'btn-hybrid-delta-sync':    hybridDeltaSyncScenario,
+  'btn-hybrid-phs':           hybridPHSScenario,
+  'btn-hybrid-pta':           hybridPTAScenario,
+  'btn-hybrid-writeback':     hybridPasswordWritebackScenario,
+  'btn-hybrid-seamless-sso':  hybridSeamlessSSOScenario,
+  'btn-hybrid-cloud-krb':     hybridCloudKerberosTrustScenario,
+  // Attacks
+  'btn-hybrid-aadconnect-dump':  hybridAADConnectDumpScenario,
+  'btn-hybrid-dcsync-msol':      hybridDCSyncViaMSOLScenario,
+  'btn-hybrid-sso-silver':       hybridSSOSilverTicketScenario,
+  'btn-hybrid-golden-saml':      hybridGoldenSAMLScenario,
+  'btn-hybrid-writeback-abuse':  hybridWritebackAbuseScenario,
+  'btn-hybrid-pta-intercept':    hybridPTAInterceptionScenario,
+  // Sync Engine & Trust Attacks
+  'btn-hybrid-immutableid':      hybridImmutableIDTakeoverScenario,
+  'btn-hybrid-cloud-kbt-forge':  hybridCloudKerberosForgeScenario,
+  'btn-hybrid-group-writeback':  hybridGroupWritebackAbuseScenario,
 };
 
 // Wire all scenario buttons
@@ -164,6 +208,9 @@ Object.entries(SCENARIO_MAP).forEach(([id, scenario]) => {
 Object.entries(ENTRA_SCENARIO_MAP).forEach(([id, scenario]) => {
   bind(id, () => startScenario(scenario));
 });
+Object.entries(HYBRID_SCENARIO_MAP).forEach(([id, scenario]) => {
+  bind(id, () => startScenario(scenario));
+});
 
 // Control buttons
 bind('btn-reset', () => resetSimulationState(true));
@@ -171,29 +218,35 @@ bind('btn-next-step', handleNextStep);
 document.getElementById('chk-manual-mode')?.addEventListener('change', () => {});
 
 // Mode switching
+const MODE_ELEMENTS = { ad: initialElements, entra: entraInitialElements, hybrid: hybridInitialElements };
+const MODE_NAMES    = { ad: 'On-Premises AD', entra: 'Entra ID (Cloud)', hybrid: 'Hybrid Identity (On-Prem + Entra)' };
+
 function switchMode(newMode) {
   if (state.mode === newMode) return;
   state.mode = newMode;
   resetSimulationState(true);
-  initializeCytoscape(newMode === 'entra' ? entraInitialElements : initialElements);
+  initializeCytoscape(MODE_ELEMENTS[newMode] || initialElements);
 
-  document.getElementById('scenarios-ad').style.display    = newMode === 'ad'    ? '' : 'none';
-  document.getElementById('scenarios-entra').style.display = newMode === 'entra' ? '' : 'none';
-  document.getElementById('legend-ad').style.display       = newMode === 'ad'    ? '' : 'none';
-  document.getElementById('legend-entra').style.display    = newMode === 'entra' ? '' : 'none';
+  ['ad', 'entra', 'hybrid'].forEach(m => {
+    const s = document.getElementById(`scenarios-${m}`);
+    const l = document.getElementById(`legend-${m}`);
+    if (s) s.style.display = m === newMode ? '' : 'none';
+    if (l) l.style.display = m === newMode ? '' : 'none';
+  });
 
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('mode-btn-active', b.dataset.mode === newMode);
   });
 
   state.cy.ready(() => {
-    log(`Switched to ${newMode === 'entra' ? 'Entra ID (Cloud)' : 'On-Premises AD'} simulation.`, 'info');
+    log(`Switched to ${MODE_NAMES[newMode] || newMode} simulation.`, 'info');
     updateButtonStates();
   });
 }
 
-bind('btn-mode-ad',    () => switchMode('ad'));
-bind('btn-mode-entra', () => switchMode('entra'));
+bind('btn-mode-ad',     () => switchMode('ad'));
+bind('btn-mode-entra',  () => switchMode('entra'));
+bind('btn-mode-hybrid', () => switchMode('hybrid'));
 
 // Fit graph to current canvas
 bind('btn-fit-graph', () => state.cy?.fit(undefined, 40));

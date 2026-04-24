@@ -26,6 +26,9 @@ export function log(message, type = 'info') {
     case 'azurerm':  icon = '<i class="fas fa-cubes fa-fw me-1"></i>'; break;
     case 'token':    icon = '<i class="fas fa-ticket-alt fa-fw me-1"></i>'; break;
     case 'setup':    icon = '<i class="fas fa-cog fa-fw me-1"></i>'; break;
+    case 'sync':     icon = '<i class="fas fa-sync-alt fa-fw me-1"></i>'; break;
+    case 'saml':     icon = '<i class="fas fa-id-card fa-fw me-1"></i>'; break;
+    case 'pta':      icon = '<i class="fas fa-exchange-alt fa-fw me-1"></i>'; break;
     default:
       icon = '<i class="fas fa-angle-right fa-fw me-1"></i>';
   }

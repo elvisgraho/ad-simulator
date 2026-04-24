@@ -461,6 +461,11 @@ details.scenario-group[open] > summary { color: var(--text-primary); }
 .log-msgraph { color: #00b294; }
 .log-imds    { color: #a67dd4; }
 
+/* ── Hybrid Identity log type colors ── */
+.log-sync    { color: #4fd1aa; }
+.log-saml    { color: #c084fc; font-weight: 600; }
+.log-pta     { color: #fb923c; }
+
 /* ── Responsive: compact laptops (≤1440px wide or ≤800px tall) ── */
 @media (max-width: 1440px) {
   #controls { width: 265px; }
