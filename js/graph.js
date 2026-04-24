@@ -41,12 +41,12 @@ function protocolToEdgeClass(protocol) {
 
 const NODE_ICONS = {
   dc: svgIcon(`
-    <rect x="2" y="3" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <rect x="2" y="10" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <rect x="2" y="17" width="20" height="5" rx="1" stroke="#569cd6" stroke-width="1.5"/>
-    <circle cx="19" cy="5.5" r="1" fill="#569cd6"/>
-    <circle cx="19" cy="12.5" r="1" fill="#569cd6"/>
-    <circle cx="19" cy="19.5" r="1" fill="#569cd6"/>`),
+    <rect x="4.5" y="4.5" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="4.5" y="10" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <rect x="4.5" y="15.5" width="15" height="4" rx="1" stroke="#569cd6" stroke-width="1.5"/>
+    <circle cx="17" cy="6.5" r="0.9" fill="#569cd6"/>
+    <circle cx="17" cy="12" r="0.9" fill="#569cd6"/>
+    <circle cx="17" cy="17.5" r="0.9" fill="#569cd6"/>`),
 
   ca: svgIcon(`
     <path d="M12 2L4 5v6c0 5.5 3.5 10.5 8 12 4.5-1.5 8-6.5 8-12V5L12 2z" stroke="#dcdcaa" stroke-width="1.5"/>
@@ -86,9 +86,9 @@ const NODE_ICONS = {
 
   // ── Entra ID node types ──
   entra: svgIcon(`
-    <rect x="5" y="11" width="14" height="10" rx="1.5" stroke="#0078d4" stroke-width="1.5" fill="none"/>
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="#0078d4" stroke-width="1.5" fill="none"/>
-    <circle cx="12" cy="16.5" r="1.5" fill="#0078d4"/>`),
+    <rect x="6.5" y="11.5" width="11" height="8" rx="1.5" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <path d="M8.5 11.5V8.2a3.5 3.5 0 0 1 7 0v3.3" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+    <circle cx="12" cy="15.5" r="1.2" fill="#0078d4"/>`),
 
   entrauser: svgIcon(`
     <circle cx="12" cy="8" r="4" stroke="#50b4e8" stroke-width="1.5" fill="none"/>
@@ -249,7 +249,7 @@ export function initializeCytoscape(elements) {
         },
       },
       // Each type gets a distinct shape + color so nodes are recognizable at a glance
-      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-dc',       style: { shape: 'diamond',        width: '72px', height: '72px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-fit': 'none', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747', 'background-width': '34px', 'background-height': '34px' } },
@@ -298,7 +298,7 @@ export function initializeCytoscape(elements) {
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
 
       // ── Entra ID node types ──
-      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-entra',       style: { shape: 'diamond',        width: '76px', height: '76px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-fit': 'none', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8', 'background-width': '30px', 'background-height': '30px' } },
       { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00', 'background-width': '34px', 'background-height': '34px' } },
       { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '42px', 'background-height': '32px' } },
