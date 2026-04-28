@@ -3,13 +3,13 @@ import { state, stepDelay } from './state.js';
 
 function svgIcon(innerPaths) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
   )}`;
 }
 
 function paddedSvgIcon(innerPaths) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" preserveAspectRatio="xMidYMid meet" fill="none" stroke-linecap="round" stroke-linejoin="round">${innerPaths}</svg>`
   )}`;
 }
 
@@ -152,6 +152,44 @@ const NODE_ICONS = {
     <path d="M12 7v3M12 14v3" stroke="#e8a838" stroke-width="1.2"/>`),
 };
 
+const NODE_TYPE_CLASSES = {
+  dc: 'cy-node-dc',
+  ca: 'cy-node-ca',
+  user: 'cy-node-user',
+  admin: 'cy-node-admin',
+  svc: 'cy-node-svc',
+  host: 'cy-node-host',
+  server: 'cy-node-server',
+  attacker: 'cy-node-attacker',
+  entra: 'cy-node-entra',
+  entrauser: 'cy-node-entrauser',
+  entraadmin: 'cy-node-entraadmin',
+  entradevice: 'cy-node-entradevice',
+  entrasvc: 'cy-node-entrasvc',
+  entrami: 'cy-node-entrami',
+  entrarsc: 'cy-node-entrarsc',
+  azurersc: 'cy-node-azurersc',
+  aadconnect: 'cy-node-aadconnect',
+  adfs: 'cy-node-adfs',
+};
+
+function normalizeGraphElements(elements) {
+  const clonedElements = JSON.parse(JSON.stringify(elements));
+  clonedElements.forEach((element) => {
+    if (element.group === 'edges' || element.data?.source || element.data?.target) return;
+    const typeClass = NODE_TYPE_CLASSES[element.data?.type];
+    const stateClasses = (element.classes || '')
+      .split(/\s+/)
+      .filter((className) => className && className !== 'cy-node' && !className.startsWith('cy-node-'));
+    element.classes = [...new Set([
+      'cy-node',
+      typeClass,
+      ...stateClasses,
+    ].filter(Boolean))].join(' ');
+  });
+  return clonedElements;
+}
+
 export const initialElements = [
   { data: { id: 'dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 470, y: 92 } },
   { data: { id: 'ca01', name: 'CA01', type: 'ca', fqdn: 'ca01.corp.local', ip: '10.1.1.20' }, classes: 'cy-node cy-node-ca', position: { x: 620, y: 92 } },
@@ -198,22 +236,28 @@ export const entraInitialElements = [
 export const hybridInitialElements = [
   // ── On-Premises ──
   { data: { id: 'hb_dc01', name: 'DC01', type: 'dc', fqdn: 'dc01.corp.local', ip: '10.1.1.10' }, classes: 'cy-node cy-node-dc high-value', position: { x: 180, y: 92 } },
-  { data: { id: 'hb_adfs', name: 'ADFS01', type: 'adfs', fqdn: 'adfs.corp.local', ip: '10.1.2.20' }, classes: 'cy-node cy-node-adfs', position: { x: 60, y: 222 } },
-  { data: { id: 'hb_aadconnect', name: 'AADConnect', type: 'aadconnect', fqdn: 'aadsync.corp.local', ip: '10.1.2.10', note: 'PHS/PTA/Writeback Agent' }, classes: 'cy-node cy-node-aadconnect', position: { x: 235, y: 222 } },
-  { data: { id: 'hb_msol', name: 'MSOL_sync', type: 'svc', sam: 'CORP\\MSOL_ab12cd34', ntlm_hash: 'MSOLHash', note: 'DS-Replication-Get-Changes-All ACE' }, classes: 'cy-node cy-node-svc', position: { x: 370, y: 222 } },
-  { data: { id: 'hb_user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', upn: 'alice@corp.com', synced: true, ip: '10.1.10.50' }, classes: 'cy-node cy-node-user', position: { x: 110, y: 388 } },
-  { data: { id: 'hb_dev1', name: 'WKSTN-HYB', type: 'host', fqdn: 'wkstn-hyb.corp.local', haadj: true, tpm: true, ip: '10.1.10.110' }, classes: 'cy-node cy-node-host', position: { x: 270, y: 388 } },
+  { data: { id: 'hb_adfs', name: 'ADFS01', type: 'adfs', fqdn: 'adfs.corp.local', ip: '10.1.2.20' }, classes: 'cy-node cy-node-adfs', position: { x: 60, y: 260 } },
+  { data: { id: 'hb_aadconnect', name: 'AADConnect', type: 'aadconnect', fqdn: 'aadsync.corp.local', ip: '10.1.2.10', note: 'PHS/PTA/Writeback Agent' }, classes: 'cy-node cy-node-aadconnect', position: { x: 235, y: 260 } },
+  { data: { id: 'hb_msol', name: 'MSOL_sync', type: 'svc', sam: 'CORP\\MSOL_ab12cd34', ntlm_hash: 'MSOLHash', note: 'DS-Replication-Get-Changes-All ACE' }, classes: 'cy-node cy-node-svc', position: { x: 370, y: 260 } },
+  { data: { id: 'hb_user1', name: 'Alice', type: 'user', sam: 'CORP\\Alice', upn: 'alice@corp.com', synced: true, ip: '10.1.10.50' }, classes: 'cy-node cy-node-user', position: { x: 110, y: 500 } },
+  { data: { id: 'hb_dev1', name: 'WKSTN-HYB', type: 'host', fqdn: 'wkstn-hyb.corp.local', haadj: true, tpm: true, ip: '10.1.10.110' }, classes: 'cy-node cy-node-host', position: { x: 270, y: 500 } },
 
   // ── Cloud (Entra ID) ──
   { data: { id: 'hb_entra', name: 'Entra ID', type: 'entra', tenantId: 'corp.onmicrosoft.com' }, classes: 'cy-node cy-node-entra high-value', position: { x: 640, y: 92 } },
-  { data: { id: 'hb_m365', name: 'M365 / SharePoint', type: 'entrarsc', url: 'https://corp.sharepoint.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 800, y: 222 } },
+  { data: { id: 'hb_m365', name: 'M365 / SharePoint', type: 'entrarsc', url: 'https://corp.sharepoint.com' }, classes: 'cy-node cy-node-entrarsc', position: { x: 800, y: 260 } },
 
   // ── Threat Actor ──
-  { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 455, y: 422 } },
+  { data: { id: 'hb_attacker', name: 'Attacker', type: 'attacker', ip: '10.1.100.50' }, classes: 'cy-node cy-node-attacker', position: { x: 455, y: 520 } },
 ];
 
 export function fitGraphToViewport(padding = state.graphFitPadding) {
-  state.cy?.fit(undefined, padding);
+  if (!state.cy) return;
+  const container = state.cy.container();
+  const shortSide = Math.min(container?.clientWidth || 0, container?.clientHeight || 0);
+  const responsivePadding = shortSide > 0
+    ? Math.max(16, Math.min(padding, Math.round(shortSide * 0.045)))
+    : padding;
+  state.cy.fit(undefined, responsivePadding);
 }
 
 export function initializeCytoscape(elements) {
@@ -221,7 +265,7 @@ export function initializeCytoscape(elements) {
 
   state.cy = cytoscape({
     container: document.getElementById('cy'),
-    elements: JSON.parse(JSON.stringify(elements)),
+    elements: normalizeGraphElements(elements),
     userZoomingEnabled: false,
     fit: false,
     style: [
@@ -233,14 +277,14 @@ export function initializeCytoscape(elements) {
           'background-color': '#2d2d30',
           'border-width': 2, 'border-color': '#555',
           'background-image': (ele) => NODE_ICONS[ele.data('type')] || '',
-          'background-fit': 'contain',
-          'background-clip': 'none',
+          'background-fit': 'none',
+          'background-clip': 'node',
           'background-repeat': 'no-repeat',
           'background-position-x': '50%',
-          'background-position-y': '42%',
+          'background-position-y': '50%',
           'background-image-opacity': 0.92,
-          'background-width': '34px',
-          'background-height': '34px',
+          'background-width': '64%',
+          'background-height': '64%',
           label: (ele) => ele.data('name'),
           'text-valign': 'bottom',
           'text-halign': 'center',
@@ -255,24 +299,18 @@ export function initializeCytoscape(elements) {
         },
       },
       // Each type gets a distinct shape + color so nodes are recognizable at a glance
-      { selector: '.cy-node-dc',       style: { shape: 'round-hexagon',  width: '80px', height: '64px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-fit': 'contain', 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '28px', 'background-height': '28px' } },
-      { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
-      { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0', 'background-width': '30px', 'background-height': '30px' } },
-      { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747', 'background-width': '34px', 'background-height': '34px' } },
-      { selector: '.cy-node-svc',      style: { shape: 'octagon',        width: '52px', height: '52px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a', 'background-width': '30px', 'background-height': '30px' } },
-      { selector: '.cy-node-host',     style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-server',   style: { shape: 'rectangle',      width: '72px', height: '52px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-width': '42px', 'background-height': '30px' } },
-      { selector: '.cy-node-attacker', style: { shape: 'hexagon',        width: '64px', height: '64px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5, 'background-width': '36px', 'background-height': '36px' } },
+      { selector: '.cy-node-dc',       style: { shape: 'round-hexagon',  width: '80px', height: '64px', 'background-color': '#091d36', 'border-color': '#569cd6', 'border-width': 2.5, 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%' } },
+      { selector: '.cy-node-ca',       style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#271e00', 'border-color': '#dcdcaa', 'background-clip': 'node' } },
+      { selector: '.cy-node-user',     style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#091f14', 'border-color': '#4ec9b0' } },
+      { selector: '.cy-node-admin',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#2a0606', 'border-color': '#f44747' } },
+      { selector: '.cy-node-svc',      style: { shape: 'octagon',        width: '52px', height: '52px', 'background-color': '#1e1e20', 'border-color': '#7a7a7a' } },
+      { selector: '.cy-node-host',     style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001b24', 'border-color': '#0dcaf0', 'background-position-y': '50%' } },
+      { selector: '.cy-node-server',   style: { shape: 'rectangle',      width: '72px', height: '52px', 'background-color': '#160c2a', 'border-color': '#c586c0', 'background-position-y': '50%' } },
+      { selector: '.cy-node-attacker', style: { shape: 'hexagon',        width: '64px', height: '64px', 'background-color': '#280000', 'border-color': '#e03131', 'border-width': 2.5 } },
       {
         selector: 'node.highlighted',
         style: { 'border-color': '#ffe066', 'border-width': 3, 'background-color': '#2d2900' },
       },
-      // Re-assert non-square icon dimensions after highlighted/compromised cascade — prevents Cytoscape
-      // from falling back to the base node 68% percentage values on hover/state change.
-      { selector: '.cy-node-host.highlighted, .cy-node-host.compromised',         style: { 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-server.highlighted, .cy-node-server.compromised',     style: { 'background-width': '42px', 'background-height': '30px' } },
-      { selector: '.cy-node-entradevice.highlighted, .cy-node-entradevice.compromised', style: { 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-aadconnect.highlighted, .cy-node-aadconnect.compromised', style: { 'background-width': '42px', 'background-height': '42px' } },
       {
         selector: 'node.compromised',
         style: { 'background-color': '#2d0000', 'border-color': '#e03131', 'border-width': 3, 'border-style': 'dashed' },
@@ -304,18 +342,18 @@ export function initializeCytoscape(elements) {
       { selector: '.temp-edge',     style: { opacity: 0.9 } },
 
       // ── Entra ID node types ──
-      { selector: '.cy-node-entra',       style: { shape: 'round-rectangle', width: '86px', height: '64px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-fit': 'contain', 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%', 'background-width': '44px', 'background-height': '44px', 'corner-radius': '10px' } },
-      { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8', 'background-width': '30px', 'background-height': '30px' } },
-      { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00', 'background-width': '34px', 'background-height': '34px' } },
-      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-width': '42px', 'background-height': '32px' } },
-      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#160d2c', 'border-color': '#8764b8', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
-      { selector: '.cy-node-entrami',     style: { shape: 'octagon',        width: '56px', height: '56px', 'background-color': '#001c18', 'border-color': '#00b294', 'background-width': '32px', 'background-height': '32px' } },
-      { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',         width: '60px', height: '60px', 'background-color': '#001400', 'border-color': '#107c10', 'background-width': '34px', 'background-height': '34px' } },
-      { selector: '.cy-node-azurersc',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#1e0e00', 'border-color': '#e86c00', 'background-width': '34px', 'background-height': '34px' } },
+      { selector: '.cy-node-entra',       style: { shape: 'roundrectangle', width: '86px', height: '64px', 'background-color': '#001428', 'border-color': '#0078d4', 'border-width': 2.5, 'background-clip': 'node', 'background-position-x': '50%', 'background-position-y': '50%', 'corner-radius': '10px' } },
+      { selector: '.cy-node-entrauser',   style: { shape: 'ellipse',        width: '52px', height: '52px', 'background-color': '#00182e', 'border-color': '#50b4e8' } },
+      { selector: '.cy-node-entraadmin',  style: { shape: 'hexagon',        width: '62px', height: '62px', 'background-color': '#2a1400', 'border-color': '#ff8c00' } },
+      { selector: '.cy-node-entradevice', style: { shape: 'roundrectangle', width: '68px', height: '52px', 'background-color': '#001c24', 'border-color': '#50e6ff', 'background-position-y': '50%' } },
+      { selector: '.cy-node-entrasvc',    style: { shape: 'pentagon',       width: '58px', height: '58px', 'background-color': '#160d2c', 'border-color': '#8764b8', 'background-clip': 'node' } },
+      { selector: '.cy-node-entrami',     style: { shape: 'octagon',        width: '56px', height: '56px', 'background-color': '#001c18', 'border-color': '#00b294' } },
+      { selector: '.cy-node-entrarsc',    style: { shape: 'barrel',         width: '60px', height: '60px', 'background-color': '#001400', 'border-color': '#107c10' } },
+      { selector: '.cy-node-azurersc',    style: { shape: 'hexagon',        width: '60px', height: '60px', 'background-color': '#1e0e00', 'border-color': '#e86c00' } },
 
       // ── Hybrid Identity node types ──
-      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',      width: '76px', height: '52px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-fit': 'contain', 'background-width': '42px', 'background-height': '42px' } },
-      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',       width: '60px', height: '60px', 'background-color': '#1e1400', 'border-color': '#e8a838', 'background-fit': 'contain', 'background-clip': 'node', 'background-width': '30px', 'background-height': '30px' } },
+      { selector: '.cy-node-aadconnect', style: { shape: 'rectangle',      width: '76px', height: '52px', 'background-color': '#001c14', 'border-color': '#4fd1aa', 'border-width': 2, 'background-position-y': '50%' } },
+      { selector: '.cy-node-adfs',       style: { shape: 'pentagon',       width: '60px', height: '60px', 'background-color': '#1e1400', 'border-color': '#e8a838', 'background-clip': 'node' } },
 
       // ── Hybrid protocol edges ──
       { selector: '.sync-edge',       style: { 'line-color': '#4fd1aa', 'target-arrow-color': '#4fd1aa', width: 2.5, 'line-style': 'dashed', 'z-index': 10 } },

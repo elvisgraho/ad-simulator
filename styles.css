@@ -479,12 +479,10 @@ details.scenario-group[open] > summary { color: var(--text-primary); }
   .legend-panel { padding: 8px 10px 10px 10px; }
 }
 @media (max-height: 800px) {
-  #log-area { height: 160px; min-height: 70px; }
   .ctrl-panel { padding: 7px 10px; }
   .ctrl-panel-title { margin-bottom: 7px; }
 }
 @media (max-height: 700px) {
   #header { height: 28px; }
-  #log-area { height: 130px; min-height: 60px; }
   #log-content { font-size: 11px; }
 }

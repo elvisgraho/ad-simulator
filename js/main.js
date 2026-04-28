@@ -218,7 +218,7 @@ document.getElementById('chk-manual-mode')?.addEventListener('change', () => {})
 // Mode switching
 const MODE_ELEMENTS = { ad: initialElements, entra: entraInitialElements, hybrid: hybridInitialElements };
 const MODE_NAMES    = { ad: 'On-Premises AD', entra: 'Entra ID (Cloud)', hybrid: 'Hybrid Identity (On-Prem + Entra)' };
-const MODE_GRAPH_PADDING = { ad: 40, entra: 40, hybrid: 90 };
+const MODE_GRAPH_PADDING = { ad: 24, entra: 24, hybrid: 24 };
 
 function switchMode(newMode) {
   if (state.mode === newMode) return;
