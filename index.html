@@ -329,6 +329,10 @@
         <details class="scenario-group">
           <summary><i class="fas fa-binoculars icon-enum"></i> Enumeration &amp; Discovery</summary>
           <div class="scenario-group-body">
+            <button id="btn-entra-external-recon" class="btn cat-enum">
+              <i class="fas fa-play"></i> External Entra / Azure Recon
+              <span class="req">No credentials required</span>
+            </button>
             <button id="btn-entra-azurehound" class="btn cat-enum">
               <i class="fas fa-play"></i> AzureHound / BloodHound Enum
               <span class="req">Any valid tenant user credential</span>
@@ -336,6 +340,14 @@
             <button id="btn-entra-graph-enum" class="btn cat-enum">
               <i class="fas fa-play"></i> Graph API Targeted Recon
               <span class="req">Any valid tenant user credential</span>
+            </button>
+            <button id="btn-entra-post-recon" class="btn cat-enum">
+              <i class="fas fa-play"></i> Post-Compromise Recon
+              <span class="req">Compromised user or reader-capable session</span>
+            </button>
+            <button id="btn-entra-deploy-cred" class="btn cat-enum">
+              <i class="fas fa-play"></i> ARM Deployment History Credential Hunting
+              <span class="req">Reader access to any resource group</span>
             </button>
           </div>
         </details>
@@ -347,13 +359,25 @@
               <i class="fas fa-play"></i> Password Spray (Smart Lockout Evasion)
               <span class="req">Direct attack — no account required</span>
             </button>
+            <button id="btn-entra-owa-spray" class="btn cat-cred">
+              <i class="fas fa-play"></i> OWA Password Spray (Cloud vs On-Prem)
+              <span class="req">Exchange Online or hybrid/on-prem OWA</span>
+            </button>
             <button id="btn-entra-mfa-fatigue" class="btn cat-cred">
               <i class="fas fa-play"></i> MFA Fatigue / Push Bombing
               <span class="req">Requires valid password, no number matching</span>
             </button>
+            <button id="btn-entra-mfa-hijack" class="btn cat-cred">
+              <i class="fas fa-play"></i> MFA Registration Hijack (Dormant Account)
+              <span class="req">Valid credentials, no MFA registered on account</span>
+            </button>
             <button id="btn-entra-devicecode" class="btn cat-cred">
               <i class="fas fa-play"></i> Device Code Phishing (OAuth2)
               <span class="req">Direct attack — no account required</span>
+            </button>
+            <button id="btn-entra-m365-bec" class="btn cat-cred">
+              <i class="fas fa-play"></i> M365 Business Email Compromise
+              <span class="req">Compromised mailbox token or session</span>
             </button>
             <button id="btn-entra-aitm" class="btn cat-cred">
               <i class="fas fa-play"></i> AITM via Evilginx2 (Token Capture)
@@ -365,9 +389,17 @@
         <details class="scenario-group">
           <summary><i class="fas fa-ticket-alt icon-token"></i> Token &amp; Session Attacks</summary>
           <div class="scenario-group-body">
+            <button id="btn-entra-pass-cookie" class="btn cat-token">
+              <i class="fas fa-play"></i> Pass-the-Cookie (Chrome ESTS Cookie Theft)
+              <span class="req">Requires local code execution on victim workstation</span>
+            </button>
             <button id="btn-entra-prt-theft" class="btn cat-token">
               <i class="fas fa-play"></i> Pass-the-PRT (LSASS → Token Replay)
               <span class="req">Requires SYSTEM on Entra-joined device</span>
+            </button>
+            <button id="btn-entra-device-join" class="btn cat-token">
+              <i class="fas fa-play"></i> Malicious Device Join — CA Bypass via Rogue Registration
+              <span class="req">Any compromised user account (no admin required)</span>
             </button>
             <button id="btn-entra-consent-phish" class="btn cat-token">
               <i class="fas fa-play"></i> Consent Phishing (Malicious OAuth2 App)
@@ -376,6 +408,10 @@
             <button id="btn-entra-implicit-token" class="btn cat-token">
               <i class="fas fa-play"></i> Implicit Flow Token Harvest (URL Fragment / XSS / Referrer)
               <span class="req">SPA with implicit grant enabled, any user context</span>
+            </button>
+            <button id="btn-entra-office-token" class="btn cat-token">
+              <i class="fas fa-play"></i> Office 365 App Memory Token Harvest (Process Dump → Graph MFA Bypass)
+              <span class="req">Code execution on victim workstation with M365 apps</span>
             </button>
           </div>
         </details>
@@ -387,9 +423,37 @@
               <i class="fas fa-play"></i> Add Credentials to App Reg (SP Backdoor)
               <span class="req">Requires Application Administrator role</span>
             </button>
+            <button id="btn-entra-cloudapp-sp-rbac" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Cloud App Admin → SP Contributor Pivot
+              <span class="req">Cloud Application Admin, app SP has Azure RBAC</span>
+            </button>
+            <button id="btn-entra-keyvault-abuse" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Key Vault Secret Theft / Access Grant Abuse
+              <span class="req">Azure RBAC or legacy Key Vault access policy path</span>
+            </button>
+            <button id="btn-entra-storage-abuse" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Storage Account Abuse — Key Extraction &amp; Blob Exfil
+              <span class="req">Reader on subscription/resource group</span>
+            </button>
+            <button id="btn-entra-useradmin-rbac" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> User Admin Password Reset → Azure RBAC Pivot
+              <span class="req">User Administrator, target has User Access Admin</span>
+            </button>
+            <button id="btn-entra-mi-abuse" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Managed Identity Abuse (Over-Privileged MI → Key Vault)
+              <span class="req">Code execution on VM with over-privileged system-assigned MI</span>
+            </button>
             <button id="btn-entra-imds-theft" class="btn cat-azurerm">
               <i class="fas fa-play"></i> IMDS Credential Theft (SSRF / RCE)
               <span class="req">Requires RCE or SSRF on Azure workload</span>
+            </button>
+            <button id="btn-entra-vm-runcommand" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> VM Run Command Abuse (MI → Lateral Movement)
+              <span class="req">Managed Identity with Contributor on resource group</span>
+            </button>
+            <button id="btn-entra-automation-cred" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Automation Account Credential Extraction via Runbook
+              <span class="req">Automation Contributor / Owner on resource group</span>
             </button>
             <button id="btn-entra-pim-takeover" class="btn cat-priv">
               <i class="fas fa-play"></i> PIM Takeover → Global Admin Escalation
@@ -398,6 +462,10 @@
             <button id="btn-entra-wif-abuse" class="btn cat-priv">
               <i class="fas fa-play"></i> Workload Identity Federation Abuse (Secretless OIDC Backdoor)
               <span class="req">Application Administrator or app Owner role</span>
+            </button>
+            <button id="btn-entra-role-rbac" class="btn cat-azurerm">
+              <i class="fas fa-play"></i> Entra Role / Azure RBAC Boundary Pivot
+              <span class="req">Compromised Entra admin plus Azure RBAC path</span>
             </button>
           </div>
         </details>
@@ -408,6 +476,30 @@
             <button id="btn-entra-illicit-consent" class="btn cat-domain">
               <i class="fas fa-play"></i> Illicit Consent Grant (Tenant-Wide App)
               <span class="req">Requires user / admin consent</span>
+            </button>
+            <button id="btn-entra-disable-audit" class="btn cat-domain">
+              <i class="fas fa-play"></i> Disable Unified Audit Log Ingestion
+              <span class="req">Exchange Online Audit Logs role / Global Admin</span>
+            </button>
+            <button id="btn-entra-adfs-log-spoof" class="btn cat-domain">
+              <i class="fas fa-play"></i> AD FS Connect Health Sign-in Log Spoofing
+              <span class="req">Local admin on AD FS / WAP health-agent host</span>
+            </button>
+            <button id="btn-entra-fake-health-agent" class="btn cat-domain">
+              <i class="fas fa-play"></i> Fake Connect Health Agent Registration
+              <span class="req">Global Administrator</span>
+            </button>
+            <button id="btn-entra-fed-backdoor" class="btn cat-domain">
+              <i class="fas fa-play"></i> Federation Backdoor (Cloud-Only, MFA Bypass)
+              <span class="req">Domain Name Admin / Hybrid Identity Admin / Global Admin</span>
+            </button>
+            <button id="btn-entra-sp-user-backdoor" class="btn cat-domain">
+              <i class="fas fa-play"></i> SP Abuse → Graph Perm Expansion → Backdoor User (APT29)
+              <span class="req">Application Administrator + target app registration</span>
+            </button>
+            <button id="btn-entra-automation-webhook" class="btn cat-domain">
+              <i class="fas fa-play"></i> Automation Account Webhook → Out-of-Band Re-Entry Backdoor
+              <span class="req">Automation Contributor + MI with User Administrator</span>
             </button>
           </div>
         </details>
@@ -473,6 +565,10 @@
             <button id="btn-hybrid-pta-intercept" class="btn cat-domain">
               <i class="fas fa-play"></i> PTA Agent Compromise — Plaintext Cred Intercept
               <span class="req">SYSTEM on AADConnect / PTA agent host</span>
+            </button>
+            <button id="btn-hybrid-pta-skeleton" class="btn cat-domain">
+              <i class="fas fa-play"></i> PTA Skeleton Key — LogonUserW Hook (Any Password + Harvest)
+              <span class="req">SYSTEM on AADConnect / PTA agent host (or Hybrid Identity Admin)</span>
             </button>
           </div>
         </details>

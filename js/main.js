@@ -59,14 +59,27 @@ import {
 
 // Entra ID attack scenarios
 import {
-  entraAzureHoundScenario, entraGraphEnumScenario,
-  entraPasswordSprayScenario, entraMFAFatigueScenario,
-  entraDeviceCodePhishingScenario, entraAITMScenario,
-  entraPassThePRTScenario, entraConsentPhishingScenario,
-  entraAppCredAbuseScenario, entraIMDSCredTheftScenario,
-  entraPIMTakeoverScenario, entraIllicitConsentScenario,
-  entraImplicitTokenHarvestScenario,
+  entraExternalReconScenario,
+  entraAzureHoundScenario, entraGraphEnumScenario, entraPostCompromiseReconScenario,
+  entraPasswordSprayScenario, entraOWAPasswordSprayScenario, entraMFAFatigueScenario,
+  entraMFARegistrationHijackScenario, entraDeviceCodePhishingScenario, entraM365BECScenario, entraAITMScenario,
+  entraPassTheCookieScenario, entraPassThePRTScenario, entraConsentPhishingScenario,
+  entraAppCredAbuseScenario, entraIMDSCredTheftScenario, entraVMRunCommandAbuseScenario,
+  entraManagedIdentityAbuseScenario, entraDeploymentHistoryCredHuntScenario,
+  entraCloudAppAdminSpRbacScenario,
+  entraKeyVaultAbuseScenario,
+  entraUserAdminPasswordResetRbacScenario,
+  entraPIMTakeoverScenario, entraIllicitConsentScenario, entraUnifiedAuditLogDisableScenario,
+  entraAdfsConnectHealthLogSpoofScenario, entraFakeHealthAgentScenario,
+  entraImplicitTokenHarvestScenario, entraOfficeTokenHarvestScenario,
+  entraAutomationCredExfilScenario,
   entraWIFAbuseScenario,
+  entraRoleRbacBoundaryPivotScenario,
+  entraFederationBackdoorScenario,
+  entraSPGraphPermExpansionUserBackdoorScenario,
+  entraAutomationWebhookPersistenceScenario,
+  entraStorageAccountAbuseScenario,
+  entraMaliciousDeviceJoinScenario,
 } from './scenarios/entra_attacks.js';
 
 // Hybrid Identity legitimate scenarios
@@ -81,6 +94,7 @@ import {
   hybridAADConnectDumpScenario, hybridDCSyncViaMSOLScenario,
   hybridSSOSilverTicketScenario, hybridGoldenSAMLScenario,
   hybridWritebackAbuseScenario, hybridPTAInterceptionScenario,
+  hybridPTASkeletonKeyScenario,
   hybridImmutableIDTakeoverScenario, hybridCloudKerberosForgeScenario,
   hybridGroupWritebackAbuseScenario,
 } from './scenarios/hybrid_attacks.js';
@@ -157,24 +171,47 @@ const ENTRA_SCENARIO_MAP = {
   'btn-entra-prt-rotation':  entraPRTRotationScenario,
   'btn-entra-macos-sso':     entraMacOSSSOScenario,
   // Enumeration
+  'btn-entra-external-recon': entraExternalReconScenario,
   'btn-entra-azurehound':    entraAzureHoundScenario,
   'btn-entra-graph-enum':    entraGraphEnumScenario,
+  'btn-entra-post-recon':    entraPostCompromiseReconScenario,
   // Initial Access
   'btn-entra-spray':         entraPasswordSprayScenario,
+  'btn-entra-owa-spray':     entraOWAPasswordSprayScenario,
   'btn-entra-mfa-fatigue':   entraMFAFatigueScenario,
+  'btn-entra-mfa-hijack':    entraMFARegistrationHijackScenario,
   'btn-entra-devicecode':    entraDeviceCodePhishingScenario,
+  'btn-entra-m365-bec':      entraM365BECScenario,
   'btn-entra-aitm':          entraAITMScenario,
   // Token & Session
+  'btn-entra-pass-cookie':   entraPassTheCookieScenario,
   'btn-entra-prt-theft':     entraPassThePRTScenario,
   'btn-entra-consent-phish': entraConsentPhishingScenario,
   'btn-entra-implicit-token': entraImplicitTokenHarvestScenario,
+  'btn-entra-office-token':   entraOfficeTokenHarvestScenario,
   // Privilege Escalation
   'btn-entra-app-cred':      entraAppCredAbuseScenario,
+  'btn-entra-cloudapp-sp-rbac': entraCloudAppAdminSpRbacScenario,
+  'btn-entra-keyvault-abuse': entraKeyVaultAbuseScenario,
+  'btn-entra-storage-abuse':  entraStorageAccountAbuseScenario,
+  'btn-entra-useradmin-rbac': entraUserAdminPasswordResetRbacScenario,
+  'btn-entra-deploy-cred':   entraDeploymentHistoryCredHuntScenario,
+  'btn-entra-mi-abuse':      entraManagedIdentityAbuseScenario,
   'btn-entra-imds-theft':    entraIMDSCredTheftScenario,
+  'btn-entra-vm-runcommand': entraVMRunCommandAbuseScenario,
   'btn-entra-pim-takeover':  entraPIMTakeoverScenario,
+  'btn-entra-automation-cred': entraAutomationCredExfilScenario,
   'btn-entra-wif-abuse':     entraWIFAbuseScenario,
+  'btn-entra-role-rbac':     entraRoleRbacBoundaryPivotScenario,
+  'btn-entra-device-join':    entraMaliciousDeviceJoinScenario,
   // Persistence
   'btn-entra-illicit-consent': entraIllicitConsentScenario,
+  'btn-entra-disable-audit':  entraUnifiedAuditLogDisableScenario,
+  'btn-entra-adfs-log-spoof': entraAdfsConnectHealthLogSpoofScenario,
+  'btn-entra-fake-health-agent': entraFakeHealthAgentScenario,
+  'btn-entra-fed-backdoor':   entraFederationBackdoorScenario,
+  'btn-entra-sp-user-backdoor': entraSPGraphPermExpansionUserBackdoorScenario,
+  'btn-entra-automation-webhook': entraAutomationWebhookPersistenceScenario,
 };
 
 // Hybrid Identity scenario map
@@ -193,6 +230,7 @@ const HYBRID_SCENARIO_MAP = {
   'btn-hybrid-golden-saml':      hybridGoldenSAMLScenario,
   'btn-hybrid-writeback-abuse':  hybridWritebackAbuseScenario,
   'btn-hybrid-pta-intercept':    hybridPTAInterceptionScenario,
+  'btn-hybrid-pta-skeleton':     hybridPTASkeletonKeyScenario,
   // Sync Engine & Trust Attacks
   'btn-hybrid-immutableid':      hybridImmutableIDTakeoverScenario,
   'btn-hybrid-cloud-kbt-forge':  hybridCloudKerberosForgeScenario,

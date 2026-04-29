@@ -154,27 +154,32 @@ export const hybridSSOSilverTicketScenario = [
 export const hybridGoldenSAMLScenario = [
   {
     scenarioName: "Attack: Golden SAML — ADFS Token-Signing Certificate Theft",
-    logMessage: "Attacker Goal: Steal ADFS private token-signing key → forge SAML 2.0 assertions for ANY user (incl. Global Admin) → authenticate to Entra ID as federated user bypassing all Entra controls including MFA.",
+    logMessage: "Attacker Goal: Steal the AD FS token-signing private key and forge SAML 2.0 assertions for federated users. If the forged claim set matches the tenant trust, Entra ID accepts the assertion as coming from the legitimate federation service and issues cloud tokens.",
     logType: "attack",
     action: () => highlightElement("hb_attacker"),
   },
   {
-    logMessage: "Attacker targets ADFS01 (hb_adfs). ADFS stores its token-signing cert in one of two ways: (A) Windows Certificate Store on ADFS server (exportable or with DPAPI), (B) Distributed Key Manager (DKM) — key shards stored as AD object attributes under Program Data.",
+    logMessage: "Scope: Golden SAML applies wherever a tenant federates with AD FS or another SAML provider. Entra ID validates the SAML assertion signature against the configured federation signing certificate — whoever holds the signing private key is the trust root. Migrating to Password Hash Sync or cloud-native Entra CBA eliminates this attack surface entirely.",
+    logType: "info",
+    action: () => highlightElement("hb_entra"),
+  },
+  {
+    logMessage: "Attacker targets ADFS01 (hb_adfs). AD FS token-signing certificates are designed to prevent token counterfeiting; compromise of the private key defeats that protection. Depending on deployment, the material is protected by the local certificate store/DPAPI and AD FS configuration data, or by Distributed Key Manager data stored under AD objects.",
     logType: "info",
     action: () => addTemporaryEdge("hb_attacker", "hb_adfs", "attack-flow", "Compromise ADFS"),
   },
   {
-    logMessage: "Path A (DKM — most secure ADFS config): DKM master key stored in AD: LDAP query CN=ADFS,CN=Microsoft,CN=Program Data,DC=corp,DC=local. Object class 'contact'. Attribute: thumbnailPhoto contains AES-256 master key (Base64-encoded). Attacker uses MSOL_ / DA LDAP read.",
+    logMessage: "Path A (DKM-backed farm): attacker with domain-level or AD FS service-account access reads the AD FS DKM material from AD and combines it with the AD FS configuration database to recover the token-signing PFX. This is why AD FS service accounts and Domain Admin paths are Tier 0 assets.",
     logType: "ldap",
     action: () => addTemporaryEdge("hb_attacker", "hb_dc01", "ldap", "DKM key LDAP read"),
   },
   {
-    logMessage: "DKM Key recovered: <256-bit AES key>. On ADFS host with local admin → run ADFSDump tool: ADFSDump.exe /domain:corp.local /dkmKey:<base64-DKM-key>. Decrypts and exports token-signing PFX from ADFS configuration database.",
+    logMessage: "DKM key recovered. On or near the AD FS host, attacker decrypts the AD FS configuration and exports the token-signing certificate plus private key. Tools can automate this, but the core primitive is simple: recover the key that signs tokens trusted by Microsoft Entra ID.",
     logType: "attack",
     action: () => highlightElement("hb_adfs"),
   },
   {
-    logMessage: "Path B (Cert Store): On compromised ADFS host, export with: certutil -exportpfx -p 'P@ssword123' My <signing-cert-thumbprint> adfs-signing.pfx. OR dump via mimikatz: crypto::certificates /systemstore:LOCAL_MACHINE /store:MY /export.",
+    logMessage: "Path B (certificate-store exposure): if the token-signing certificate private key is exportable or recoverable from a compromised federation server, local admin on AD FS can extract the PFX directly. Microsoft recommends protecting AD FS token-signing keys carefully and using HSM-backed protection where practical.",
     logType: "attack",
     action: () => highlightElement("hb_adfs"),
   },
@@ -189,17 +194,27 @@ export const hybridGoldenSAMLScenario = [
     action: () => highlightElement("hb_attacker"),
   },
   {
-    logMessage: "Submit Golden SAML to the tenant's Entra federation sign-in endpoint under login.microsoftonline.com. Form body contains SAMLResponse=<base64-SAML-XML>. Entra verifies the signature against the registered ADFS signing certificate thumbprint — SIGNATURE VALID because the attacker used the real private key.",
+    logMessage: "Submit Golden SAML to the tenant's Entra federation sign-in endpoint under login.microsoftonline.com. Entra verifies the signature against the federated domain's configured signingCertificate or nextSigningCertificate. If the private key matches and claims are plausible, the assertion is trusted.",
     logType: "saml",
     action: () => addTemporaryEdge("hb_attacker", "hb_entra", "saml", "Forged SAML POST"),
   },
   {
-    logMessage: "Entra ID: SAML assertion trusted — Entra cannot distinguish forged from legitimate (both signed with real ADFS private key). Issues access_token + refresh_token for globaladmin@corp.com. NO MFA triggered — SAML is a federated trust assertion.",
+    logMessage: "Entra ID: SAML assertion trusted — Entra cannot distinguish a forged assertion from a legitimate AD FS assertion when both are signed with the real private key. Upstream AD FS password/MFA checks are bypassed; Entra Conditional Access can still evaluate cloud-side controls, but any federated MFA/authentication claims in the signed assertion may be accepted if the tenant trusts them.",
     logType: "attack",
     action: () => highlightElement("hb_entra"),
   },
   {
-    logMessage: "IMPACT: Full Entra tenant compromise as Global Admin. ADFS private key theft is persistent — until cert is rotated (ADFS cert rotation is rare, often 1-year or more). Attacker can forge tokens for any federated user indefinitely. Mitigation: move to Managed authentication (PHS/PTA) to remove ADFS dependency.",
+    logMessage: "Certificate rollover reality: AD FS supports AutoCertificateRollover, and Microsoft Entra can monitor federation metadata to keep token-signing certificates synchronized. Emergency response to suspected private-key theft is not waiting for expiry; rotate the AD FS token-signing certificate, update Entra federation settings, revoke sessions, and investigate every privileged federated sign-in during the exposure window.",
+    logType: "info",
+    action: () => highlightElement("hb_adfs"),
+  },
+  {
+    logMessage: "Detection: correlate AD FS security/audit logs, certificate-export or configuration-database access, DKM object reads, unusual federation metadata/certificate changes, and Microsoft Entra sign-ins for federated users. Entra Connect Health for AD FS can bring AD FS sign-in details into Entra sign-in reporting when deployed.",
+    logType: "info",
+    action: () => highlightElement("hb_entra"),
+  },
+  {
+    logMessage: "IMPACT: Full Entra tenant compromise if the attacker forges assertions for privileged federated users such as Global Administrators. Password resets do not fix the trust-root compromise; remediation requires token-signing key rotation, session revocation, AD FS hardening, and ideally migration away from federation where it is no longer required.",
     logType: "attack",
     action: () => { addTemporaryEdge("hb_attacker", "hb_entra", "attack-flow", "Global Admin"); addTemporaryEdge("hb_attacker", "hb_m365", "attack-flow", "Tenant-wide access"); },
   },
@@ -324,7 +339,72 @@ export const hybridPTAInterceptionScenario = [
   },
 ];
 
-// ── 7. ImmutableID Soft/Hard Match — Cloud Account Takeover via Sync ──────────
+// ── 7. PTA Skeleton Key — LogonUserW Hook (Auth Bypass + Cred Harvest) ────────
+export const hybridPTASkeletonKeyScenario = [
+  {
+    scenarioName: "Attack: PTA Skeleton Key — LogonUserW Hook (Any Password + Credential Harvest)",
+    logMessage: "Attacker Goal: Inject a DLL into the PTA agent process that hooks the LogonUserW Win32 API. Effect: (1) any password authenticates as any user — skeleton key backdoor; (2) plaintext credentials captured for every auth. Distinct from credential-interception-only attacks: this bypasses DC validation entirely.",
+    logType: "attack",
+    action: () => { highlightElement("hb_attacker"); highlightElement("hb_aadconnect"); },
+  },
+  {
+    logMessage: "Prerequisite: Attacker has SYSTEM on the AADConnect / PTA agent host. PTA agent process: AzureADConnectAuthenticationAgent.exe. The hook target is LogonUserW (advapi32.dll) — the Win32 API the agent calls to validate credentials against the on-prem DC.",
+    logType: "info",
+    action: () => highlightElement("hb_aadconnect"),
+  },
+  {
+    logMessage: "DLL injection: attacker allocates PTA agent process memory, writes DLL path, and calls CreateRemoteThread → LoadLibraryA. The DLL entry point installs an inline hook (trampoline) on LogonUserW: overwrite first 12 bytes of the function with a JMP to malicious stub. advapi32!LogonUserW must be writable → VirtualProtectEx with PAGE_EXECUTE_READWRITE first.",
+    logType: "attack",
+    action: () => highlightElement("hb_aadconnect"),
+  },
+  {
+    logMessage: "Hook stub logic: captures {domain, username, password} from LogonUserW arguments, writes them to a named pipe or file, then calls the original function via a saved trampoline (bytes saved before patching + JMP back). Normal DC validation proceeds — no authentication errors observed by users.",
+    logType: "attack",
+    action: () => highlightElement("hb_aadconnect"),
+  },
+  {
+    logMessage: "Skeleton key effect: malicious stub can short-circuit the DC call — if the submitted password matches an attacker-set magic string (e.g., 'Passw0rd!'), stub returns TRUE (auth success) without calling the real LogonUserW, bypassing DC validation. Any user account authenticates with the magic password. Legitimate password still works in parallel.",
+    logType: "attack",
+    action: () => { highlightElement("hb_aadconnect"); highlightElement("hb_dc01"); },
+  },
+  {
+    logMessage: "PTA auth flow with hook active: Entra ID encrypts {alice@corp.com, Corp@Summer2026!} → Service Bus → PTA agent decrypts → LogonUserW called → hook fires → credentials logged → magic-password check → calls real DC if not magic → returns result to Entra. Alice's auth succeeds normally. Attacker also has her password.",
+    logType: "pta",
+    action: () => { addTemporaryEdge("hb_entra", "hb_aadconnect", "pta", "Encrypted auth req"); addTemporaryEdge("hb_aadconnect", "hb_dc01", "ldap", "LogonUserW (hooked)"); },
+  },
+  {
+    logMessage: "Attacker log sample: [2026-04-29 09:14:22] DOMAIN=CORP USER=alice PASSWORD=Corp@Summer2026! [2026-04-29 09:31:07] DOMAIN=CORP USER=bob PASSWORD=Autumn2026$ — full plaintext harvest for every PTA-authenticated user. No anomalous events in Entra sign-in logs (all auths succeed).",
+    logType: "attack",
+    action: () => highlightElement("hb_attacker"),
+  },
+  {
+    logMessage: "Variant — install attacker-controlled PTA agent: if attacker has compromised a Hybrid Identity Administrator (or higher) account, they can download the PTA agent installer from the Entra portal (Entra ID → Azure AD Connect → Pass-through authentication → Download) and install it on an attacker-controlled host. The agent registers, appears in portal, and receives auth requests from Entra's load balancer.",
+    logType: "attack",
+    action: () => { addTemporaryEdge("hb_attacker", "hb_entra", "oidc", "Download PTA agent"); highlightElement("hb_aadconnect"); },
+  },
+  {
+    logMessage: "Attacker PTA agent: same hook installed on the attacker host's agent process. Entra distributes auth requests across all registered agents — some percentage of user auths land on the attacker's agent. Persistence: survives reboots, appears as legitimate agent in Entra portal. Removal requires Hybrid Identity Admin to deregister it.",
+    logType: "attack",
+    action: () => addTemporaryEdge("hb_attacker", "hb_entra", "pta", "Attacker agent registered"),
+  },
+  {
+    logMessage: "Tool note: AADInternals Install-AADIntPTASpy automates this attack but is heavily signatured by EDR products. Recommended approach: compile Adam Chester's backdoor.dll independently and write a custom injector targeting AzureADConnectAuthenticationAgent.exe by PID — no named tool artifacts on disk.",
+    logType: "info",
+    action: () => highlightElement("hb_aadconnect"),
+  },
+  {
+    logMessage: "DETECTION: Sysmon Event ID 8 (CreateRemoteThread) targeting AzureADConnectAuthenticationAgent.exe. Sysmon Event ID 7 (ImageLoad) for unsigned DLLs in PTA agent process. auditd equivalent on agent host: process injection via ptrace syscall chain. Monitor for new PTA agents registered in Entra portal (Entra Audit log: 'Add agent to tenant'). Treat AADConnect host as Tier-0 — PAW access, no lateral movement paths in.",
+    logType: "info",
+    action: () => { highlightElement("hb_entra"); highlightElement("hb_aadconnect"); },
+  },
+  {
+    logMessage: "IMPACT: Universal auth bypass for all PTA-authenticated users + mass plaintext credential harvest, with zero anomalous sign-in events. Survives password resets (hook reinstalls on agent restart). Attacker-controlled agent variant persists independently of on-prem access. Mitigate: isolate PTA agent host as Tier-0, enforce Hybrid Identity Admin MFA + PIM, monitor agent registration events, disable PTA if cloud-only auth is viable.",
+    logType: "attack",
+    action: () => { addTemporaryEdge("hb_attacker", "hb_entra", "attack-flow", "Any-user backdoor"); addTemporaryEdge("hb_attacker", "hb_dc01", "attack-flow", "Mass cred harvest"); },
+  },
+];
+
+// ── 8. ImmutableID Soft/Hard Match — Cloud Account Takeover via Sync ──────────
 export const hybridImmutableIDTakeoverScenario = [
   {
     scenarioName: "Attack: ImmutableID Manipulation — Sync-Based Cloud Account Takeover",
